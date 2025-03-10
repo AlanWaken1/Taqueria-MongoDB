@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import DashboardCharts from '@/components/DashboardCharts';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -180,6 +181,9 @@ export default function DashboardPage() {
           </a>
         </div>
       </div>
+      
+      {/* Gráficos interactivos */}
+      <DashboardCharts stats={stats} />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Balance General */}
