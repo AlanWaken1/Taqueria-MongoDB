@@ -13,7 +13,7 @@ export const CanvasRevealEffect = ({
   showGradient = true
 }) => {
   return (
-    <div className={cn("h-full relative bg-white w-full", containerClassName)}>
+    (<div className={cn("h-full relative bg-white w-full", containerClassName)}>
       <div className="h-full w-full">
         <DotMatrix
           colors={colors ?? [[0, 255, 255]]}
@@ -32,7 +32,7 @@ export const CanvasRevealEffect = ({
       {showGradient && (
         <div className="absolute inset-0 bg-gradient-to-t from-gray-950 to-[84%]" />
       )}
-    </div>
+    </div>)
   );
 };
 
@@ -98,7 +98,7 @@ const DotMatrix = ({
   }, [colors, opacities, totalSize, dotSize]);
 
   return (
-    <Shader
+    (<Shader
       source={`
         precision mediump float;
         in vec2 fragCoord;
@@ -149,7 +149,7 @@ const DotMatrix = ({
       fragColor.rgb *= fragColor.a;
         }`}
       uniforms={uniforms}
-      maxFps={60} />
+      maxFps={60} />)
   );
 };
 
@@ -248,17 +248,17 @@ const ShaderMaterial = ({
   }, [size.width, size.height, source]);
 
   return (
-    <mesh ref={ref}>
+    (<mesh ref={ref}>
       <planeGeometry args={[2, 2]} />
       <primitive object={material} attach="material" />
-    </mesh>
+    </mesh>)
   );
 };
 
 const Shader = ({ source, uniforms, maxFps = 60 }) => {
   return (
-    <Canvas className="absolute inset-0  h-full w-full">
+    (<Canvas className="absolute inset-0  h-full w-full">
       <ShaderMaterial source={source} uniforms={uniforms} maxFps={maxFps} />
-    </Canvas>
+    </Canvas>)
   );
 };

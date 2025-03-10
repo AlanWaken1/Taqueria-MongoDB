@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import DashboardCharts from '@/components/DashboardCharts';
+import StatsCard from '@/components/StatsCard';
+import { TypewriterEffectSmooth } from "@/components/ui/typewriter-effect";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -13,6 +15,14 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Configuración para el efecto typewriter
+  const words = [
+    { text: "Sistema" },
+    { text: "de" },
+    { text: "Gestión", className: "text-[#38bdf8]" },
+    { text: "Taquería", className: "text-[#7dd3fc]" },
+  ];
   
   // Cargar datos al montar
   useEffect(() => {
@@ -105,9 +115,10 @@ export default function DashboardPage() {
     <div>
       <div className="mb-8">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-            <p className="text-[#94a3b8]">Resumen del sistema de gestión</p>
+          <div className="w-full">
+            {/* Reemplazar el título estático con el efecto TypeWriter */}
+            <TypewriterEffectSmooth words={words} className="mb-1" />
+            <p className="text-[#94a3b8] ml-1">Resumen del sistema de gestión</p>
           </div>
           <div>
             <button className="btn-primary px-4 py-2 rounded-lg flex items-center">
@@ -117,69 +128,45 @@ export default function DashboardPage() {
         </div>
       </div>
       
-      {/* Stats Cards */}
+      {/* Stats Cards with Canvas Reveal Effect */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="stats-card animate-glow shine">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium text-[#94a3b8]">Productos en Inventario</div>
-              <div className="text-2xl font-bold text-white mt-1">{stats.productos}</div>
-            </div>
-            <div className="w-12 h-12 rounded-lg bg-[#334155] text-[#38bdf8] flex items-center justify-center text-xl">
-              📦
-            </div>
-          </div>
-          <a href="/productos" className="mt-4 text-[#38bdf8] text-sm hover:text-[#0ea5e9] flex items-center">
-            Ver productos <span className="ml-1">→</span>
-          </a>
-        </div>
+        <StatsCard 
+          icon="📦"
+          title="Productos en Inventario"
+          value={stats.productos}
+          linkText="Ver productos"
+          linkHref="/productos"
+          colorScheme="blue"
+        />
         
-        <div className="stats-card animate-glow shine">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium text-[#94a3b8]">Platillos en Menú</div>
-              <div className="text-2xl font-bold text-white mt-1">{stats.platillos}</div>
-            </div>
-            <div className="w-12 h-12 rounded-lg bg-[#334155] text-[#38bdf8] flex items-center justify-center text-xl">
-              🌮
-            </div>
-          </div>
-          <a href="/platillos" className="mt-4 text-[#38bdf8] text-sm hover:text-[#0ea5e9] flex items-center">
-            Ver platillos <span className="ml-1">→</span>
-          </a>
-        </div>
+        <StatsCard 
+          icon="🌮"
+          title="Platillos en Menú"
+          value={stats.platillos}
+          linkText="Ver platillos"
+          linkHref="/platillos"
+          colorScheme="yellow"
+        />
         
-        <div className="stats-card animate-glow shine">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium text-[#94a3b8]">Ventas</div>
-              <div className="text-2xl font-bold text-white mt-1">${stats.ventas.total.toFixed(2)}</div>
-              <div className="text-xs text-[#94a3b8] mt-1">{stats.ventas.count} transacciones</div>
-            </div>
-            <div className="w-12 h-12 rounded-lg bg-[#334155] text-[#38bdf8] flex items-center justify-center text-xl">
-              💰
-            </div>
-          </div>
-          <a href="/ventas" className="mt-4 text-[#38bdf8] text-sm hover:text-[#0ea5e9] flex items-center">
-            Ver ventas <span className="ml-1">→</span>
-          </a>
-        </div>
+        <StatsCard 
+          icon="💰"
+          title="Ventas"
+          value={`$${stats.ventas.total.toFixed(2)}`}
+          subValue={`${stats.ventas.count} transacciones`}
+          linkText="Ver ventas"
+          linkHref="/ventas"
+          colorScheme="green"
+        />
         
-        <div className="stats-card animate-glow shine">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium text-[#94a3b8]">Compras</div>
-              <div className="text-2xl font-bold text-white mt-1">${stats.compras.total.toFixed(2)}</div>
-              <div className="text-xs text-[#94a3b8] mt-1">{stats.compras.count} transacciones</div>
-            </div>
-            <div className="w-12 h-12 rounded-lg bg-[#334155] text-[#38bdf8] flex items-center justify-center text-xl">
-              🛒
-            </div>
-          </div>
-          <a href="/compras" className="mt-4 text-[#38bdf8] text-sm hover:text-[#0ea5e9] flex items-center">
-            Ver compras <span className="ml-1">→</span>
-          </a>
-        </div>
+        <StatsCard 
+          icon="🛒"
+          title="Compras"
+          value={`$${stats.compras.total.toFixed(2)}`}
+          subValue={`${stats.compras.count} transacciones`}
+          linkText="Ver compras"
+          linkHref="/compras"
+          colorScheme="red"
+        />
       </div>
       
       {/* Gráficos interactivos */}
