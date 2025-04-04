@@ -1,29 +1,31 @@
 // src/app/api/compras/route.js
-import { executeTransaction } from '@/lib/db';
+import { executeTransaction } from '@/lib/mongodb';
 import { NextResponse } from 'next/server';
+import Compra from '@/models/Compra';
+import Producto from '@/models/Producto';
+import Proveedor from '@/models/Proveedor';
+import mongoose from 'mongoose';
+import { protectRoute, checkRole } from '@/lib/auth';
 
 // Obtener todas las compras
-export async function GET() {
+export async function GET(request) {
   try {
-    const result = await executeTransaction(async (connection) => {
-      const [compras] = await connection.execute(`
-        SELECT c.*, p.nombre as proveedor_nombre
-        FROM Compras c
-        LEFT JOIN Proveedores p ON c.id_Proveedor = p.id_Proveedor
-        ORDER BY c.fecha DESC, c.hora DESC
-      `);
-      
-      // Para cada compra, obtener sus detalles
-      for (let i = 0; i < compras.length; i++) {
-        const [detalles] = await connection.execute(`
-          SELECT cp.*, p.nombre as producto_nombre
-          FROM Compra_Producto cp
-          LEFT JOIN Productos p ON cp.id_Producto = p.id_Producto
-          WHERE cp.id_Compra = ?
-        `, [compras[i].id_Compra]);
-        
-        compras[i].detalles = detalles;
-      }
+    // Verificar autenticación
+    const authResult = await protectRoute(request);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: 401 });
+    }
+    
+    // Verificar roles - solo admin y encargado pueden ver compras
+    if (!checkRole(authResult.user, ['admin', 'encargado'])) {
+      return NextResponse.json({ error: 'No tienes permisos para ver compras' }, { status: 403 });
+    }
+
+    const result = await executeTransaction(async () => {
+      // Obtener todas las compras ordenadas por fecha y hora descendente
+      const compras = await Compra.find({})
+        .sort({ fecha: -1, hora: -1 })
+        .lean();
       
       return compras;
     });
@@ -41,52 +43,93 @@ export async function GET() {
 // Crear una compra
 export async function POST(request) {
   try {
-    const { fecha, hora, total, id_Proveedor, detalles } = await request.json();
+    // Verificar autenticación
+    const authResult = await protectRoute(request);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: 401 });
+    }
     
-    const result = await executeTransaction(async (connection) => {
-      // Iniciar transacción
-      await connection.beginTransaction();
+    // Verificar roles - solo admin y encargado pueden crear compras
+    if (!checkRole(authResult.user, ['admin', 'encargado'])) {
+      return NextResponse.json({ error: 'No tienes permisos para registrar compras' }, { status: 403 });
+    }
+
+    const { fecha, hora, total, proveedor_id, detalles } = await request.json();
+    
+    const result = await executeTransaction(async () => {
+      // Iniciar sesión de transacción en MongoDB
+      const session = await mongoose.startSession();
+      session.startTransaction();
       
       try {
+        // Obtener el proveedor para incluir su información
+        const proveedor = await Proveedor.findById(proveedor_id).lean();
+        if (!proveedor && proveedor_id) {
+          throw new Error("El proveedor especificado no existe");
+        }
+        
         // Crear la compra principal
-        const [compraResult] = await connection.execute(
-          'CALL CrearCompra(?, ?, ?, ?)',
-          [fecha || new Date().toISOString().split('T')[0], 
-           hora || new Date().toTimeString().split(' ')[0], 
-           total, id_Proveedor]
-        );
+        const fechaFormateada = fecha || new Date().toISOString().split('T')[0];
+        const horaFormateada = hora || new Date().toTimeString().split(' ')[0];
         
-        // Obtener el ID de la compra recién creada
-        const [idResult] = await connection.execute('SELECT LAST_INSERT_ID() as id');
-        const idCompra = idResult[0].id;
+        const nuevaCompra = new Compra({
+          fecha: new Date(fechaFormateada),
+          hora: horaFormateada,
+          total: total,
+          proveedor: proveedor ? {
+            _id: proveedor._id,
+            nombre: proveedor.nombre
+          } : null,
+          detalles: [],
+          // Agregar información del usuario que creó la compra
+          creadoPor: {
+            id: authResult.user.id,
+            email: authResult.user.email,
+            rol: authResult.user.rol
+          }
+        });
         
-        // Registrar los detalles de la compra
+        // Registrar los detalles de la compra y actualizar el stock
         if (detalles && detalles.length > 0) {
           for (const detalle of detalles) {
-            // Insertar en la tabla de relación
-            await connection.execute(
-              'INSERT INTO Compra_Producto (id_Compra, id_Producto, cantidad, costo_unitario) VALUES (?, ?, ?, ?)',
-              [idCompra, detalle.id_Producto, detalle.cantidad, detalle.costo_unitario]
-            );
+            // Buscar el producto
+            const producto = await Producto.findById(detalle.producto_id).session(session);
+            if (!producto) {
+              throw new Error(`El producto con ID ${detalle.producto_id} no existe`);
+            }
+            
+            // Añadir el detalle a la compra
+            nuevaCompra.detalles.push({
+              producto_id: producto._id,
+              nombre: producto.nombre,
+              cantidad: detalle.cantidad,
+              costo_unitario: detalle.costo_unitario
+            });
             
             // Actualizar el stock del producto
-            await connection.execute(
-              'CALL sp_updateProducto(?, ?)',
-              [detalle.id_Producto, detalle.cantidad]
+            await Producto.findByIdAndUpdate(
+              producto._id,
+              { $inc: { cantidad: detalle.cantidad } },
+              { session }
             );
           }
         }
         
+        // Guardar la compra
+        await nuevaCompra.save({ session });
+        
         // Confirmar la transacción
-        await connection.commit();
+        await session.commitTransaction();
+        session.endSession();
         
         return { 
           Mensaje: "Compra registrada correctamente", 
-          id_Compra: idCompra 
+          id_Compra: nuevaCompra._id 
         };
       } catch (error) {
         // Revertir en caso de error
-        await connection.rollback();
+        await session.abortTransaction();
+        session.endSession();
         throw error;
       }
     });
@@ -104,16 +147,63 @@ export async function POST(request) {
 // Actualizar una compra
 export async function PUT(request) {
   try {
-    const { id_Compra, fecha, hora, total, id_Proveedor } = await request.json();
+    // Verificar autenticación
+    const authResult = await protectRoute(request);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: 401 });
+    }
     
-    const result = await executeTransaction(async (connection) => {
-      // Llamar al procedimiento almacenado ActualizarCompra
-      const [rows] = await connection.execute(
-        'CALL ActualizarCompra(?, ?, ?, ?, ?)',
-        [id_Compra, fecha, hora, total, id_Proveedor]
+    // Verificar roles - solo admin y encargado pueden modificar compras
+    if (!checkRole(authResult.user, ['admin', 'encargado'])) {
+      return NextResponse.json({ error: 'No tienes permisos para modificar compras' }, { status: 403 });
+    }
+
+    const { _id, fecha, hora, total, proveedor_id } = await request.json();
+    
+    const result = await executeTransaction(async () => {
+      // Verificar que la compra exista
+      const compra = await Compra.findById(_id);
+      if (!compra) {
+        throw new Error("La compra no existe");
+      }
+      
+      // Si se está actualizando el proveedor, obtener su información
+      let proveedorData = compra.proveedor;
+      
+      if (proveedor_id && (!compra.proveedor || compra.proveedor._id.toString() !== proveedor_id)) {
+        const proveedor = await Proveedor.findById(proveedor_id);
+        if (!proveedor) {
+          throw new Error("El proveedor especificado no existe");
+        }
+        
+        proveedorData = {
+          _id: proveedor._id,
+          nombre: proveedor.nombre
+        };
+      }
+      
+      // Actualizar la compra
+      const compraActualizada = await Compra.findByIdAndUpdate(
+        _id,
+        {
+          fecha: fecha ? new Date(fecha) : compra.fecha,
+          hora: hora || compra.hora,
+          total: total !== undefined ? total : compra.total,
+          proveedor: proveedorData,
+          // Registrar quién actualizó
+          actualizadoPor: {
+            id: authResult.user.id,
+            email: authResult.user.email,
+            rol: authResult.user.rol
+          }
+        },
+        { new: true, runValidators: true }
       );
       
-      return { Mensaje: "Compra actualizada correctamente" };
+      return { 
+        Mensaje: "Compra actualizada correctamente",
+        compra: compraActualizada
+      };
     });
     
     if (result.success) {
@@ -129,6 +219,17 @@ export async function PUT(request) {
 // Eliminar una compra
 export async function DELETE(request) {
   try {
+    // Verificar autenticación
+    const authResult = await protectRoute(request);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: 401 });
+    }
+    
+    // Verificar roles - solo admin puede eliminar compras
+    if (!checkRole(authResult.user, ['admin'])) {
+      return NextResponse.json({ error: 'No tienes permisos para eliminar compras' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
@@ -136,10 +237,44 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'ID de compra no proporcionado' }, { status: 400 });
     }
     
-    const result = await executeTransaction(async (connection) => {
-      // Llamar al procedimiento almacenado EliminarCompra
-      const [rows] = await connection.execute('CALL EliminarCompra(?)', [id]);
-      return { Mensaje: "Compra eliminada correctamente" };
+    const result = await executeTransaction(async () => {
+      // Iniciar sesión de transacción
+      const session = await mongoose.startSession();
+      session.startTransaction();
+      
+      try {
+        // Buscar la compra
+        const compra = await Compra.findById(id).session(session);
+        if (!compra) {
+          throw new Error("La compra no existe");
+        }
+        
+        // Revertir el inventario si es necesario
+        if (compra.detalles && compra.detalles.length > 0) {
+          for (const detalle of compra.detalles) {
+            // Actualizar el stock del producto (restar lo que se había sumado)
+            await Producto.findByIdAndUpdate(
+              detalle.producto_id,
+              { $inc: { cantidad: -detalle.cantidad } },
+              { session }
+            );
+          }
+        }
+        
+        // Eliminar la compra
+        await Compra.findByIdAndDelete(id).session(session);
+        
+        // Confirmar la transacción
+        await session.commitTransaction();
+        session.endSession();
+        
+        return { Mensaje: "Compra eliminada correctamente" };
+      } catch (error) {
+        // Revertir en caso de error
+        await session.abortTransaction();
+        session.endSession();
+        throw error;
+      }
     });
     
     if (result.success) {

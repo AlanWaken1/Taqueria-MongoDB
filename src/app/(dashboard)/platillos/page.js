@@ -4,32 +4,49 @@ import Link from 'next/link';
 
 export default function PlatillosPage() {
   const [platillos, setPlatillos] = useState([]);
+  const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado para el formulario
+  // Estado para el formulario - adaptado para MongoDB
   const [platilloForm, setPlatilloForm] = useState({
     nombre: '',
     precio: 0,
     categoria: '',
+    ingredientes: []
   });
   
-  // Estado para edición
+  // Estado para ingrediente actual - adaptado para MongoDB
+  const [ingredienteActual, setIngredienteActual] = useState({
+    producto_id: '', // Cambiado de id_Producto a producto_id
+    cantidad: 1
+  });
+  
+  // Estado para edición - adaptado para MongoDB
   const [editForm, setEditForm] = useState({
-    id_Platillo: null,
+    _id: null, // Cambiado de id_Platillo a _id
     nombre: '',
     precio: 0,
-    categoria: ''
+    categoria: '',
+    ingredientes: []
   });
   
   // Cargar datos al montar
   useEffect(() => {
-    const fetchPlatillos = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch('/api/platillos');
-        if (!res.ok) throw new Error('Error al cargar platillos');
-        const data = await res.json();
-        setPlatillos(data);
+        // Cargar platillos
+        const platillosRes = await fetch('/api/platillos');
+        if (!platillosRes.ok) throw new Error('Error al cargar platillos');
+        const platillosData = await platillosRes.json();
+        setPlatillos(platillosData);
+        
+        // Cargar productos para ingredientes
+        const productosRes = await fetch('/api/productos');
+        if (!productosRes.ok) throw new Error('Error al cargar productos');
+        const productosData = await productosRes.json();
+        setProductos(productosData);
+        
         setLoading(false);
       } catch (err) {
         setError(err.message);
@@ -37,15 +54,91 @@ export default function PlatillosPage() {
       }
     };
     
-    fetchPlatillos();
+    fetchData();
   }, []);
   
-  // Manejar cambios en el formulario de creación
+  // Manejar cambios en el formulario
   const handleChange = (e) => {
     const { name, value } = e.target;
     setPlatilloForm({
       ...platilloForm,
       [name]: name === 'precio' ? parseFloat(value) : value
+    });
+  };
+  
+  // Manejar cambios en el ingrediente actual
+  const handleIngredienteChange = (e) => {
+    const { name, value } = e.target;
+    setIngredienteActual({
+      ...ingredienteActual,
+      [name]: name === 'cantidad' ? parseFloat(value) : value
+    });
+  };
+  
+  // Agregar ingrediente al platillo
+  const handleAgregarIngrediente = () => {
+    if (!ingredienteActual.producto_id || ingredienteActual.cantidad <= 0) {
+      alert('Por favor seleccione un producto y una cantidad válida');
+      return;
+    }
+    
+    const productoSeleccionado = productos.find(p => p._id === ingredienteActual.producto_id);
+    
+    if (!productoSeleccionado) {
+      alert('El producto seleccionado no existe');
+      return;
+    }
+    
+    // Verificar si el producto ya está en los ingredientes
+    const existeIngrediente = platilloForm.ingredientes.findIndex(
+      i => i.producto_id === ingredienteActual.producto_id
+    );
+    
+    let nuevosIngredientes = [...platilloForm.ingredientes];
+    
+    if (existeIngrediente >= 0) {
+      // Actualizar cantidad si ya existe
+      nuevosIngredientes[existeIngrediente].cantidad += ingredienteActual.cantidad;
+    } else {
+      // Agregar nuevo ingrediente
+      nuevosIngredientes.push({
+        producto_id: ingredienteActual.producto_id,
+        nombre: productoSeleccionado.nombre,
+        cantidad: ingredienteActual.cantidad
+      });
+    }
+    
+    setPlatilloForm({
+      ...platilloForm,
+      ingredientes: nuevosIngredientes
+    });
+    
+    // Resetear ingrediente actual
+    setIngredienteActual({
+      producto_id: '',
+      cantidad: 1
+    });
+  };
+  
+  // Eliminar ingrediente del platillo
+  const handleEliminarIngrediente = (index) => {
+    const nuevosIngredientes = [...platilloForm.ingredientes];
+    nuevosIngredientes.splice(index, 1);
+    
+    setPlatilloForm({
+      ...platilloForm,
+      ingredientes: nuevosIngredientes
+    });
+  };
+  
+  // Eliminar ingrediente del formulario de edición
+  const handleEliminarIngredienteEdit = (index) => {
+    const nuevosIngredientes = [...editForm.ingredientes];
+    nuevosIngredientes.splice(index, 1);
+    
+    setEditForm({
+      ...editForm,
+      ingredientes: nuevosIngredientes
     });
   };
   
@@ -58,27 +151,29 @@ export default function PlatillosPage() {
     });
   };
   
-  // Iniciar modo edición
+  // Iniciar modo edición - adaptado para MongoDB
   const handleEditMode = (platillo) => {
     setEditForm({
-      id_Platillo: platillo.id_Platillo,
+      _id: platillo._id, // Cambiado de id_Platillo a _id
       nombre: platillo.nombre,
       precio: platillo.precio,
-      categoria: platillo.categoria
+      categoria: platillo.categoria,
+      ingredientes: platillo.ingredientes || []
     });
   };
   
   // Cancelar edición
   const handleCancelEdit = () => {
     setEditForm({
-      id_Platillo: null,
+      _id: null,
       nombre: '',
       precio: 0,
-      categoria: ''
+      categoria: '',
+      ingredientes: []
     });
   };
   
-  // Guardar platillo editado
+  // Guardar platillo editado - adaptado para MongoDB
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     
@@ -120,7 +215,7 @@ export default function PlatillosPage() {
     }
   };
   
-  // Enviar formulario para nuevo platillo
+  // Enviar formulario para nuevo platillo - adaptado para MongoDB
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -160,13 +255,14 @@ export default function PlatillosPage() {
         nombre: '',
         precio: 0,
         categoria: '',
+        ingredientes: []
       });
     } catch (err) {
       alert(err.message);
     }
   };
   
-  // Eliminar platillo
+  // Eliminar platillo - adaptado para MongoDB
   const handleDeletePlatillo = async (id) => {
     if (!confirm('¿Está seguro de eliminar este platillo?')) {
       return;
@@ -305,6 +401,84 @@ export default function PlatillosPage() {
                 </select>
               </div>
               
+              {/* Sección para agregar ingredientes */}
+              <div className="mb-4 p-4 border border-[#334155] rounded-lg bg-[#1e293b]">
+                <h3 className="text-white font-semibold mb-3">Agregar Ingredientes</h3>
+                
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="form-label">Producto</label>
+                    <select
+                      name="producto_id"
+                      value={ingredienteActual.producto_id}
+                      onChange={handleIngredienteChange}
+                      className="form-select"
+                    >
+                      <option value="">Seleccionar ingrediente</option>
+                      {productos.map(producto => (
+                        <option key={producto._id} value={producto._id}>
+                          {producto.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="form-label">Cantidad</label>
+                    <input
+                      type="number"
+                      name="cantidad"
+                      value={ingredienteActual.cantidad}
+                      onChange={handleIngredienteChange}
+                      step="0.01"
+                      min="0.01"
+                      className="form-input"
+                    />
+                  </div>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={handleAgregarIngrediente}
+                  className="w-full py-2 bg-[#334155] text-white rounded-lg hover:bg-[#475569] transition-colors"
+                >
+                  Agregar Ingrediente
+                </button>
+              </div>
+              
+              {/* Lista de ingredientes agregados */}
+              <div className="mb-4">
+                <h3 className="text-white font-semibold mb-2">Ingredientes</h3>
+                
+                {platilloForm.ingredientes.length > 0 ? (
+                  <div className="bg-[#1e293b] border border-[#334155] rounded-lg p-3">
+                    <ul className="divide-y divide-[#334155]">
+                      {platilloForm.ingredientes.map((ingrediente, index) => (
+                        <li key={index} className="py-2 flex justify-between items-center">
+                          <div>
+                            <span className="text-white">{ingrediente.nombre}</span>
+                            <span className="text-[#94a3b8] text-sm ml-2">({ingrediente.cantidad})</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleEliminarIngrediente(index)}
+                            className="text-[#f87171] hover:text-[#ef4444] transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="text-center p-3 bg-[#1e293b] border border-[#334155] rounded-lg">
+                    <p className="text-[#94a3b8]">No hay ingredientes agregados</p>
+                  </div>
+                )}
+              </div>
+              
               <button
                 type="submit"
                 className="btn-primary w-full p-3 rounded-lg flex items-center justify-center"
@@ -332,7 +506,7 @@ export default function PlatillosPage() {
               <div className="space-y-4">
                 {platillos.map(platillo => (
                   <div 
-                    key={platillo.id_Platillo} 
+                    key={platillo._id}
                     className="p-4 rounded-lg bg-[#1e293b] border border-[#334155] shine flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
                   >
                     <div>
@@ -345,9 +519,16 @@ export default function PlatillosPage() {
                           {platillo.categoria}
                         </span>
                         <span className="text-[#38bdf8] font-bold">
-                        ${parseFloat(platillo.precio).toFixed(2)}
+                          ${parseFloat(platillo.precio).toFixed(2)}
                         </span>
                       </div>
+                      {platillo.ingredientes && platillo.ingredientes.length > 0 && (
+                        <div className="mt-2">
+                          <span className="text-xs text-[#94a3b8]">
+                            Ingredientes: {platillo.ingredientes.map(i => i.nombre).join(', ')}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex space-x-2 self-end sm:self-center">
                       <button
@@ -360,7 +541,7 @@ export default function PlatillosPage() {
                         </svg>
                       </button>
                       <button
-                        onClick={() => handleDeletePlatillo(platillo.id_Platillo)}
+                        onClick={() => handleDeletePlatillo(platillo._id)}
                         className="p-2 bg-[#334155] text-[#f87171] rounded-lg hover:bg-[#475569] transition-colors"
                         title="Eliminar"
                       >
@@ -384,7 +565,7 @@ export default function PlatillosPage() {
       </div>
       
       {/* Modal de edición */}
-      {editForm.id_Platillo && (
+      {editForm._id && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-[#1e293b] p-6 rounded-lg shadow-lg w-full max-w-md border border-[#334155]">
             <div className="flex justify-between items-center mb-4">
@@ -446,6 +627,39 @@ export default function PlatillosPage() {
                   <option value="Combo">Combo</option>
                   <option value="Otro">Otro</option>
                 </select>
+              </div>
+              
+              {/* Lista de ingredientes en edición */}
+              <div className="mb-4">
+                <h3 className="text-white font-semibold mb-2">Ingredientes</h3>
+                
+                {editForm.ingredientes && editForm.ingredientes.length > 0 ? (
+                  <div className="bg-[#1e293b] border border-[#334155] rounded-lg p-3">
+                    <ul className="divide-y divide-[#334155]">
+                      {editForm.ingredientes.map((ingrediente, index) => (
+                        <li key={index} className="py-2 flex justify-between items-center">
+                          <div>
+                            <span className="text-white">{ingrediente.nombre}</span>
+                            <span className="text-[#94a3b8] text-sm ml-2">({ingrediente.cantidad})</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleEliminarIngredienteEdit(index)}
+                            className="text-[#f87171] hover:text-[#ef4444] transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="text-center p-3 bg-[#1e293b] border border-[#334155] rounded-lg">
+                    <p className="text-[#94a3b8]">No hay ingredientes agregados</p>
+                  </div>
+                )}
               </div>
               
               <div className="flex justify-end space-x-2">

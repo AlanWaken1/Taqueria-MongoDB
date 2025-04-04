@@ -14,10 +14,10 @@ export default function ProveedoresPage() {
     email: ''
   });
   
-  // Estado para modo edición
+  // Estado para modo edición - adaptado para MongoDB
   const [editMode, setEditMode] = useState({
     active: false,
-    id_Proveedor: null
+    _id: null // Cambiado de id_Proveedor a _id
   });
   
   // Cargar datos al montar
@@ -47,7 +47,7 @@ export default function ProveedoresPage() {
     });
   };
   
-  // Iniciar modo edición
+  // Iniciar modo edición - adaptado para MongoDB
   const handleEditMode = (proveedor) => {
     setProveedorForm({
       nombre: proveedor.nombre,
@@ -57,7 +57,7 @@ export default function ProveedoresPage() {
     
     setEditMode({
       active: true,
-      id_Proveedor: proveedor.id_Proveedor
+      _id: proveedor._id // Cambiado de id_Proveedor a _id
     });
   };
   
@@ -65,7 +65,7 @@ export default function ProveedoresPage() {
   const handleCancelEdit = () => {
     setEditMode({
       active: false,
-      id_Proveedor: null
+      _id: null
     });
     
     setProveedorForm({
@@ -75,7 +75,7 @@ export default function ProveedoresPage() {
     });
   };
   
-  // Enviar formulario (agregar o actualizar)
+  // Enviar formulario (agregar o actualizar) - adaptado para MongoDB
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -94,7 +94,7 @@ export default function ProveedoresPage() {
         method = 'PUT';
         body = {
           ...proveedorForm,
-          id_Proveedor: editMode.id_Proveedor
+          _id: editMode._id // Cambiado de id_Proveedor a _id
         };
       }
       
@@ -132,14 +132,14 @@ export default function ProveedoresPage() {
       
       setEditMode({
         active: false,
-        id_Proveedor: null
+        _id: null
       });
     } catch (err) {
       alert(err.message);
     }
   };
   
-  // Eliminar proveedor
+  // Eliminar proveedor - adaptado para MongoDB
   const handleDeleteProveedor = async (id) => {
     if (!confirm('¿Está seguro de eliminar este proveedor?')) {
       return;
@@ -336,7 +336,7 @@ export default function ProveedoresPage() {
               <div className="space-y-4">
                 {proveedores.map(prov => (
                   <div 
-                    key={prov.id_Proveedor} 
+                    key={prov._id} 
                     className="p-4 rounded-lg bg-[#1e293b] border border-[#334155] shine flex flex-col md:flex-row justify-between"
                   >
                     <div className="mb-3 md:mb-0">
@@ -382,7 +382,7 @@ export default function ProveedoresPage() {
                         </svg>
                       </button>
                       <button
-                        onClick={() => handleDeleteProveedor(prov.id_Proveedor)}
+                        onClick={() => handleDeleteProveedor(prov._id)}
                         className={`p-2 ${prov.num_productos > 0 ? 'bg-[#334155] text-[#64748b] cursor-not-allowed' : 'bg-[#334155] text-[#f87171] hover:bg-[#475569]'} rounded-lg transition-colors`}
                         disabled={prov.num_productos > 0}
                         title={prov.num_productos > 0 ? 'Este proveedor tiene productos asignados' : 'Eliminar'}

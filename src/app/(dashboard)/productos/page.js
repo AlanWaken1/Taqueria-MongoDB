@@ -8,16 +8,17 @@ export default function ProductosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado para el formulario
+  // Estado para el formulario - adaptado para MongoDB
   const [productoForm, setProductoForm] = useState({
     nombre: '',
     cantidad: 1,
-    id_Proveedor: '',
+    categoria: 'alimentos', // Valor predeterminado según modelo
+    proveedor_id: '', // Cambiado de id_Proveedor a proveedor_id
   });
   
-  // Estado para edición de cantidad
+  // Estado para edición de cantidad - adaptado para MongoDB
   const [editCantidad, setEditCantidad] = useState({
-    id_Producto: null,
+    _id: null, // Cambiado de id_Producto a _id
     cantidad: 0
   });
   
@@ -56,10 +57,10 @@ export default function ProductosPage() {
     });
   };
   
-  // Iniciar modo edición de cantidad
+  // Iniciar modo edición de cantidad - adaptado para MongoDB
   const handleEditMode = (producto) => {
     setEditCantidad({
-      id_Producto: producto.id_Producto,
+      _id: producto._id, // Cambiado de id_Producto a _id
       cantidad: producto.cantidad
     });
   };
@@ -72,7 +73,7 @@ export default function ProductosPage() {
     });
   };
   
-  // Guardar cambios de cantidad
+  // Guardar cambios de cantidad - adaptado para MongoDB
   const handleSaveCantidad = async () => {
     try {
       const response = await fetch('/api/productos', {
@@ -102,7 +103,7 @@ export default function ProductosPage() {
       
       // Resetear estado de edición
       setEditCantidad({
-        id_Producto: null,
+        _id: null, // Cambiado de id_Producto a _id
         cantidad: 0
       });
     } catch (err) {
@@ -113,16 +114,16 @@ export default function ProductosPage() {
   // Cancelar edición
   const handleCancelEdit = () => {
     setEditCantidad({
-      id_Producto: null,
+      _id: null, // Cambiado de id_Producto a _id
       cantidad: 0
     });
   };
   
-  // Enviar formulario para nuevo producto
+  // Enviar formulario para nuevo producto - adaptado para MongoDB
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!productoForm.nombre || productoForm.cantidad < 0 || !productoForm.id_Proveedor) {
+    if (!productoForm.nombre || productoForm.cantidad < 0 || !productoForm.proveedor_id) {
       alert('Por favor complete todos los campos correctamente');
       return;
     }
@@ -157,14 +158,15 @@ export default function ProductosPage() {
       setProductoForm({
         nombre: '',
         cantidad: 1,
-        id_Proveedor: '',
+        categoria: 'alimentos',
+        proveedor_id: '',
       });
     } catch (err) {
       alert(err.message);
     }
   };
   
-  // Eliminar producto
+  // Eliminar producto - adaptado para MongoDB
   const handleDeleteProducto = async (id) => {
     if (!confirm('¿Está seguro de eliminar este producto?')) {
       return;
@@ -274,17 +276,32 @@ export default function ProductosPage() {
               </div>
               
               <div className="mb-4">
+                <label className="form-label">Categoría</label>
+                <select
+                  name="categoria"
+                  value={productoForm.categoria}
+                  onChange={handleChange}
+                  className="form-select"
+                  required
+                >
+                  <option value="alimentos">Alimentos</option>
+                  <option value="refrescos">Refrescos</option>
+                  <option value="artículos de limpieza">Artículos de limpieza</option>
+                </select>
+              </div>
+              
+              <div className="mb-4">
                 <label className="form-label">Proveedor</label>
                 <select
-                  name="id_Proveedor"
-                  value={productoForm.id_Proveedor}
+                  name="proveedor_id"
+                  value={productoForm.proveedor_id}
                   onChange={handleChange}
                   className="form-select"
                   required
                 >
                   <option value="">Seleccione un proveedor</option>
                   {proveedores.map(p => (
-                    <option key={p.id_Proveedor} value={p.id_Proveedor}>
+                    <option key={p._id} value={p._id}>
                       {p.nombre}
                     </option>
                   ))}
@@ -327,7 +344,7 @@ export default function ProductosPage() {
                   </thead>
                   <tbody>
                     {productos.map(producto => (
-                      <tr key={producto.id_Producto}>
+                      <tr key={producto._id}>
                         <td>
                           <div className="flex items-center">
                             <div className="w-8 h-8 bg-[#334155] rounded-full flex items-center justify-center mr-3">
@@ -335,12 +352,12 @@ export default function ProductosPage() {
                             </div>
                             <div>
                               <p className="font-medium text-white">{producto.nombre}</p>
-                              <p className="text-xs text-[#94a3b8]">ID: {producto.id_Producto}</p>
+                              <p className="text-xs text-[#94a3b8]">Cat: {producto.categoria}</p>
                             </div>
                           </div>
                         </td>
                         <td className="text-center">
-                          {editCantidad.id_Producto === producto.id_Producto ? (
+                          {editCantidad._id === producto._id ? (
                             <div className="flex items-center space-x-2 justify-center">
                               <input
                                 type="number"
@@ -384,9 +401,9 @@ export default function ProductosPage() {
                           )}
                         </td>
                         <td>
-                          {producto.proveedor_nombre ? (
+                          {producto.proveedor ? (
                             <span className="bg-[#334155] text-white px-2 py-1 rounded text-xs">
-                              {producto.proveedor_nombre}
+                              {producto.proveedor.nombre}
                             </span>
                           ) : (
                             <span className="text-[#94a3b8] text-xs">No asignado</span>
@@ -394,7 +411,7 @@ export default function ProductosPage() {
                         </td>
                         <td className="text-center">
                           <button
-                            onClick={() => handleDeleteProducto(producto.id_Producto)}
+                            onClick={() => handleDeleteProducto(producto._id)}
                             className="p-1 text-[#f87171] hover:text-[#ef4444] rounded"
                             title="Eliminar"
                           >

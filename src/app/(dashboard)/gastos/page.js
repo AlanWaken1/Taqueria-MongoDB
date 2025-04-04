@@ -9,21 +9,21 @@ export default function GastosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado para el formulario
+  // Estado para el formulario - adaptado para MongoDB
   const [gastoForm, setGastoForm] = useState({
     concepto: '',
     total: 0,
-    id_Compra: '',
-    id_Empleado: ''
+    compra_id: '', // MongoDB usa compra_id
+    empleado_id: '' // MongoDB usa empleado_id
   });
   
-  // Estado para edición
+  // Estado para edición - adaptado para MongoDB
   const [editForm, setEditForm] = useState({
-    id_Gasto: null,
+    _id: null, // MongoDB usa _id
     concepto: '',
     total: 0,
-    id_Compra: '',
-    id_Empleado: ''
+    compra_id: '',
+    empleado_id: ''
   });
   
   // Cargar datos al montar
@@ -59,47 +59,47 @@ export default function GastosPage() {
     fetchData();
   }, []);
   
-  // Manejar cambios en el formulario
+  // Manejar cambios en el formulario - Manejo seguro de valores numéricos
   const handleChange = (e) => {
     const { name, value } = e.target;
     setGastoForm({
       ...gastoForm,
-      [name]: name === 'total' ? parseFloat(value) : value
+      [name]: name === 'total' ? (value === '' ? 0 : parseFloat(value) || 0) : value
     });
   };
   
-  // Manejar cambios en el formulario de edición
+  // Manejar cambios en el formulario de edición - Manejo seguro de valores numéricos
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditForm({
       ...editForm,
-      [name]: name === 'total' ? parseFloat(value) : value
+      [name]: name === 'total' ? (value === '' ? 0 : parseFloat(value) || 0) : value
     });
   };
   
-  // Iniciar modo edición
+  // Iniciar modo edición - adaptado para MongoDB
   const handleEditMode = (gasto) => {
     setEditForm({
-      id_Gasto: gasto.id_Gasto,
+      _id: gasto._id,
       concepto: gasto.concepto,
-      total: gasto.total,
-      id_Compra: gasto.id_Compra || '',
-      id_Empleado: gasto.id_Empleado || ''
+      total: parseFloat(gasto.total) || 0, // Asegurar valor numérico
+      compra_id: gasto.compra_id || '',
+      empleado_id: gasto.empleado ? gasto.empleado._id || '' : ''
     });
   };
   
   // Cancelar edición
   const handleCancelEdit = () => {
     setEditForm({
-      id_Gasto: null,
+      _id: null,
       concepto: '',
       total: 0,
-      id_Compra: '',
-      id_Empleado: ''
+      compra_id: '',
+      empleado_id: ''
     });
   };
   
-  // Guardar gasto editado - SOLUCIÓN IMPLEMENTADA
+  // Guardar gasto editado - Adaptado para MongoDB
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     
@@ -112,8 +112,10 @@ export default function GastosPage() {
     const formData = {
       ...editForm,
       // Convertir cadenas vacías a null para campos de ID
-      id_Compra: editForm.id_Compra === '' ? null : editForm.id_Compra,
-      id_Empleado: editForm.id_Empleado === '' ? null : editForm.id_Empleado
+      compra_id: editForm.compra_id === '' ? null : editForm.compra_id,
+      empleado_id: editForm.empleado_id === '' ? null : editForm.empleado_id,
+      // Asegurar que total sea un número válido
+      total: parseFloat(editForm.total) || 0
     };
     
     try {
@@ -149,7 +151,7 @@ export default function GastosPage() {
     }
   };
   
-  // Enviar formulario para nuevo gasto - SOLUCIÓN IMPLEMENTADA
+  // Enviar formulario para nuevo gasto - Adaptado para MongoDB
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -162,8 +164,10 @@ export default function GastosPage() {
     const formData = {
       ...gastoForm,
       // Convertir cadenas vacías a null para campos de ID
-      id_Compra: gastoForm.id_Compra === '' ? null : gastoForm.id_Compra,
-      id_Empleado: gastoForm.id_Empleado === '' ? null : gastoForm.id_Empleado
+      compra_id: gastoForm.compra_id === '' ? null : gastoForm.compra_id,
+      empleado_id: gastoForm.empleado_id === '' ? null : gastoForm.empleado_id,
+      // Asegurar que total sea un número válido
+      total: parseFloat(gastoForm.total) || 0
     };
     
     try {
@@ -196,15 +200,15 @@ export default function GastosPage() {
       setGastoForm({
         concepto: '',
         total: 0,
-        id_Compra: '',
-        id_Empleado: ''
+        compra_id: '',
+        empleado_id: ''
       });
     } catch (err) {
       alert(err.message);
     }
   };
   
-  // Eliminar gasto
+  // Eliminar gasto - Adaptado para MongoDB
   const handleDeleteGasto = async (id) => {
     if (!confirm('¿Está seguro de eliminar este gasto?')) {
       return;
@@ -238,8 +242,8 @@ export default function GastosPage() {
   
   // Categorizar tipo de gasto para la UI
   const getTipoGasto = (gasto) => {
-    if (gasto.id_Compra) return { label: 'Compra', icon: '🛒' };
-    if (gasto.id_Empleado) return { label: 'Empleado', icon: '👨‍🍳' };
+    if (gasto.compra_id) return { label: 'Compra', icon: '🛒' };
+    if (gasto.empleado) return { label: 'Empleado', icon: '👨‍🍳' };
     return { label: 'General', icon: '📝' };
   };
   
@@ -321,15 +325,15 @@ export default function GastosPage() {
               <div className="mb-4">
                 <label className="form-label">Relacionado con Compra (opcional)</label>
                 <select
-                  name="id_Compra"
-                  value={gastoForm.id_Compra}
+                  name="compra_id"
+                  value={gastoForm.compra_id}
                   onChange={handleChange}
                   className="form-select"
                 >
                   <option value="">Ninguna</option>
                   {compras.map(c => (
-                    <option key={c.id_Compra} value={c.id_Compra}>
-                      Compra #{c.id_Compra} - ${parseFloat(c.total).toFixed(2)}
+                    <option key={c._id} value={c._id}>
+                      Compra #{c._id.toString().substring(0, 8)} - ${parseFloat(c.total).toFixed(2)}
                     </option>
                   ))}
                 </select>
@@ -338,14 +342,14 @@ export default function GastosPage() {
               <div className="mb-4">
                 <label className="form-label">Relacionado con Empleado (opcional)</label>
                 <select
-                  name="id_Empleado"
-                  value={gastoForm.id_Empleado}
+                  name="empleado_id"
+                  value={gastoForm.empleado_id}
                   onChange={handleChange}
                   className="form-select"
                 >
                   <option value="">Ninguno</option>
                   {empleados.map(e => (
-                    <option key={e.id_Empleado} value={e.id_Empleado}>
+                    <option key={e._id} value={e._id}>
                       {e.nombre}
                     </option>
                   ))}
@@ -375,7 +379,7 @@ export default function GastosPage() {
               </span>
               {gastos.length > 0 && (
                 <span className="bg-[#f87171] text-white text-xs font-bold py-1 px-2 rounded-full">
-                  ${gastos.reduce((sum, g) => sum + parseFloat(g.total), 0).toFixed(2)}
+                  ${gastos.reduce((sum, g) => sum + (parseFloat(g.total) || 0), 0).toFixed(2)}
                 </span>
               )}
             </div>
@@ -388,7 +392,7 @@ export default function GastosPage() {
                   const tipoGasto = getTipoGasto(gasto);
                   return (
                     <div 
-                      key={gasto.id_Gasto} 
+                      key={gasto._id} 
                       className="p-4 rounded-lg bg-[#1e293b] border border-[#334155] shine flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
                     >
                       <div>
@@ -400,14 +404,14 @@ export default function GastosPage() {
                           <span className="bg-[#334155] text-white text-xs px-2 py-1 rounded-full">
                             Tipo: {tipoGasto.label}
                           </span>
-                          {gasto.empleado_nombre && (
+                          {gasto.empleado && (
                             <span className="bg-[#334155] text-[#38bdf8] text-xs px-2 py-1 rounded-full">
-                              Empleado: {gasto.empleado_nombre}
+                              Empleado: {gasto.empleado.nombre}
                             </span>
                           )}
-                          {gasto.compra_fecha && (
+                          {gasto.fecha && (
                             <span className="bg-[#334155] text-[#38bdf8] text-xs px-2 py-1 rounded-full">
-                              Compra: {new Date(gasto.compra_fecha).toLocaleDateString()}
+                              Fecha: {new Date(gasto.fecha).toLocaleDateString()}
                             </span>
                           )}
                           <span className="text-[#f87171] font-bold text-sm">
@@ -426,7 +430,7 @@ export default function GastosPage() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDeleteGasto(gasto.id_Gasto)}
+                          onClick={() => handleDeleteGasto(gasto._id)}
                           className="p-2 bg-[#334155] text-[#f87171] rounded-lg hover:bg-[#475569] transition-colors"
                           title="Eliminar"
                         >
@@ -451,7 +455,7 @@ export default function GastosPage() {
       </div>
       
       {/* Modal de edición */}
-      {editForm.id_Gasto && (
+      {editForm._id && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-[#1e293b] p-6 rounded-lg shadow-lg w-full max-w-md border border-[#334155]">
             <div className="flex justify-between items-center mb-4">
@@ -499,15 +503,15 @@ export default function GastosPage() {
               <div className="mb-4">
                 <label className="form-label">Relacionado con Compra</label>
                 <select
-                  name="id_Compra"
-                  value={editForm.id_Compra}
+                  name="compra_id"
+                  value={editForm.compra_id}
                   onChange={handleEditChange}
                   className="form-select"
                 >
                   <option value="">Ninguna</option>
                   {compras.map(c => (
-                    <option key={c.id_Compra} value={c.id_Compra}>
-                      Compra #{c.id_Compra} - ${parseFloat(c.total).toFixed(2)}
+                    <option key={c._id} value={c._id}>
+                      Compra #{c._id.toString().substring(0, 8)} - ${parseFloat(c.total).toFixed(2)}
                     </option>
                   ))}
                 </select>
@@ -516,14 +520,14 @@ export default function GastosPage() {
               <div className="mb-4">
                 <label className="form-label">Relacionado con Empleado</label>
                 <select
-                  name="id_Empleado"
-                  value={editForm.id_Empleado}
+                  name="empleado_id"
+                  value={editForm.empleado_id}
                   onChange={handleEditChange}
                   className="form-select"
                 >
                   <option value="">Ninguno</option>
                   {empleados.map(e => (
-                    <option key={e.id_Empleado} value={e.id_Empleado}>
+                    <option key={e._id} value={e._id}>
                       {e.nombre}
                     </option>
                   ))}

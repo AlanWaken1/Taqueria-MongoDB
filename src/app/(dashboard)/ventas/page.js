@@ -25,7 +25,7 @@ export default function VentasPage() {
   
   // Estado para el detalle actual que se está agregando
   const [detalleActual, setDetalleActual] = useState({
-    id_Platillo: '',
+    platillo_id: '',
     cantidad: 1,
     precio: 0
   });
@@ -69,12 +69,12 @@ export default function VentasPage() {
   const handleDetalleChange = (e) => {
     const { name, value } = e.target;
     
-    if (name === 'id_Platillo') {
-      const platilloSeleccionado = platillos.find(p => p.id_Platillo === parseInt(value));
+    if (name === 'platillo_id') {
+      const platilloSeleccionado = platillos.find(p => p._id === value);
       setDetalleActual({
         ...detalleActual,
-        id_Platillo: parseInt(value),
-        precio: platilloSeleccionado ? platilloSeleccionado.precio : 0
+        platillo_id: value,
+        precio: platilloSeleccionado ? parseFloat(platilloSeleccionado.precio) : 0
       });
     } else {
       setDetalleActual({
@@ -86,16 +86,21 @@ export default function VentasPage() {
   
   // Agregar detalle a la venta
   const handleAgregarDetalle = () => {
-    if (!detalleActual.id_Platillo || detalleActual.cantidad <= 0) {
+    if (!detalleActual.platillo_id || detalleActual.cantidad <= 0) {
       alert('Por favor seleccione un platillo y una cantidad válida');
       return;
     }
     
-    const platilloSeleccionado = platillos.find(p => p.id_Platillo === detalleActual.id_Platillo);
+    const platilloSeleccionado = platillos.find(p => p._id === detalleActual.platillo_id);
+    
+    if (!platilloSeleccionado) {
+      alert('Platillo no encontrado. Por favor, seleccione uno válido.');
+      return;
+    }
     
     // Verificar si el platillo ya está en los detalles
     const detalleExistente = ventaForm.detalles.findIndex(
-      d => d.id_Platillo === detalleActual.id_Platillo
+      d => d.platillo_id === detalleActual.platillo_id
     );
     
     let nuevosDetalles = [...ventaForm.detalles];
@@ -103,14 +108,16 @@ export default function VentasPage() {
     if (detalleExistente >= 0) {
       // Actualizar cantidad si ya existe
       nuevosDetalles[detalleExistente].cantidad += detalleActual.cantidad;
+      nuevosDetalles[detalleExistente].subtotal = 
+        nuevosDetalles[detalleExistente].cantidad * nuevosDetalles[detalleExistente].precio;
     } else {
       // Agregar nuevo detalle
       nuevosDetalles.push({
-        id_Platillo: detalleActual.id_Platillo,
+        platillo_id: detalleActual.platillo_id,
         nombre: platilloSeleccionado.nombre,
         cantidad: detalleActual.cantidad,
-        precio: detalleActual.precio,
-        subtotal: detalleActual.cantidad * detalleActual.precio
+        precio: detalleActual.precio || platilloSeleccionado.precio,
+        subtotal: detalleActual.cantidad * (detalleActual.precio || platilloSeleccionado.precio)
       });
     }
     
@@ -121,7 +128,7 @@ export default function VentasPage() {
     
     // Resetear detalle actual
     setDetalleActual({
-      id_Platillo: '',
+      platillo_id: '',
       cantidad: 1,
       precio: 0
     });
@@ -153,17 +160,30 @@ export default function VentasPage() {
     }
     
     try {
+      // Formatear datos para API
+      const datosVenta = {
+        ...ventaForm,
+        detalles: ventaForm.detalles.map(detalle => ({
+          platillo_id: detalle.platillo_id,
+          cantidad: detalle.cantidad,
+          precio: detalle.precio
+        }))
+      };
+      
+      console.log("Enviando datos:", JSON.stringify(datosVenta));
+      
       const response = await fetch('/api/ventas', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(ventaForm)
+        body: JSON.stringify(datosVenta)
       });
       
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Error al registrar venta');
+        const errorData = await response.json();
+        console.error("Error response:", errorData);
+        throw new Error(errorData.error || 'Error al registrar venta');
       }
       
       const data = await response.json();
@@ -186,7 +206,8 @@ export default function VentasPage() {
         detalles: []
       });
     } catch (err) {
-      alert(err.message);
+      console.error("Error completo:", err);
+      alert('Error al registrar venta: ' + err.message);
     }
   };
   
@@ -339,14 +360,14 @@ export default function VentasPage() {
                   <div>
                     <label className="form-label">Platillo</label>
                     <select
-                      name="id_Platillo"
-                      value={detalleActual.id_Platillo}
+                      name="platillo_id"
+                      value={detalleActual.platillo_id}
                       onChange={handleDetalleChange}
                       className="form-select"
                     >
                       <option value="">Seleccionar platillo</option>
                       {platillos.map(p => (
-                        <option key={p.id_Platillo} value={p.id_Platillo}>
+                        <option key={p._id} value={p._id}>
                         {p.nombre} - ${parseFloat(p.precio).toFixed(2)}
                         </option>
                       ))}
@@ -383,7 +404,7 @@ export default function VentasPage() {
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-white font-semibold">Platillos en la venta</h3>
                   {ventaForm.detalles.length > 0 && (
-                    <span className="bg-[#38bdf8] text-white text-xs font-bold py-1 px-2 rounded-full">
+                    <span className="badge badge-blue">
                       {ventaForm.detalles.length} items
                     </span>
                   )}
@@ -510,7 +531,7 @@ export default function VentasPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-[#94a3b8]">Total de ventas:</span>
                     <span className="text-2xl font-bold text-[#4ade80]">
-                         ${totalVentas ? parseFloat(totalVentas).toFixed(2) : '0.00'}
+                         ${totalVentas !== undefined ? parseFloat(totalVentas).toFixed(2) : '0.00'}
                     </span>
                   </div>
                 </div>
@@ -543,10 +564,10 @@ export default function VentasPage() {
                     </thead>
                     <tbody>
                       {ventas.map(venta => (
-                        <tr key={venta.id_Venta}>
-                          <td>#{venta.id_Venta}</td>
+                        <tr key={venta._id}>
+                          <td>#{venta._id.toString().substring(0, 6)}</td>
                           <td>{new Date(venta.fecha).toLocaleDateString()}</td>
-                          <td>{venta.hora.slice(0, 5)}</td>
+                          <td>{venta.hora ? venta.hora.slice(0, 5) : ''}</td>
                           <td className="text-right font-bold text-[#38bdf8]">${parseFloat(venta.total).toFixed(2)}</td>
                           <td>
                             <span 
@@ -574,7 +595,7 @@ export default function VentasPage() {
                           </td>
                           <td className="text-center">
                             <button
-                              onClick={() => handleDeleteVenta(venta.id_Venta)}
+                              onClick={() => handleDeleteVenta(venta._id)}
                               className="text-[#f87171] hover:text-[#ef4444] transition-colors"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

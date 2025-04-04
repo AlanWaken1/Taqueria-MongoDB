@@ -1,4 +1,4 @@
-// /src/app/compras/page.js - Formulario de compras optimizado
+// /src/app/compras/page.js - Adaptado para MongoDB
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -11,18 +11,18 @@ export default function ComprasPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado para el formulario
+  // Estado para el formulario - Adaptado para MongoDB
   const [compraForm, setCompraForm] = useState({
     fecha: new Date().toISOString().split('T')[0],
     hora: new Date().toTimeString().split(' ')[0].substring(0, 5),
     total: 0,
-    id_Proveedor: '',
+    proveedor_id: '', // Cambiado de id_Proveedor a proveedor_id
     detalles: []
   });
   
-  // Estado para el detalle actual que se está agregando
+  // Estado para el detalle actual - Adaptado para MongoDB
   const [detalleActual, setDetalleActual] = useState({
-    id_Producto: '',
+    producto_id: '', // Cambiado de id_Producto a producto_id
     cantidad: 1,
     costo_unitario: 0
   });
@@ -75,12 +75,12 @@ export default function ComprasPage() {
     const { name, value } = e.target;
     setDetalleActual({
       ...detalleActual,
-      [name]: name === 'id_Producto' ? value : parseFloat(value)
+      [name]: name === 'producto_id' ? value : parseFloat(value) // Cambiado id_Producto a producto_id
     });
     
     // Si cambia el producto, actualizar el precio si está disponible
-    if (name === 'id_Producto' && value) {
-      const productoSeleccionado = productos.find(p => p.id_Producto == value);
+    if (name === 'producto_id' && value) { // Cambiado id_Producto a producto_id
+      const productoSeleccionado = productos.find(p => p._id === value); // Cambiado id_Producto a _id
       if (productoSeleccionado && productoSeleccionado.costo_unitario) {
         setDetalleActual(prev => ({
           ...prev,
@@ -92,16 +92,16 @@ export default function ComprasPage() {
   
   // Agregar detalle a la compra
   const handleAgregarDetalle = () => {
-    if (!detalleActual.id_Producto || detalleActual.cantidad <= 0 || detalleActual.costo_unitario <= 0) {
+    if (!detalleActual.producto_id || detalleActual.cantidad <= 0 || detalleActual.costo_unitario <= 0) {
       alert('Por favor complete todos los campos correctamente');
       return;
     }
     
-    const productoSeleccionado = productos.find(p => p.id_Producto == detalleActual.id_Producto);
+    const productoSeleccionado = productos.find(p => p._id === detalleActual.producto_id);
     
     // Verificar si el producto ya está en los detalles
     const detalleExistente = compraForm.detalles.findIndex(
-      d => d.id_Producto == detalleActual.id_Producto
+      d => d.producto_id === detalleActual.producto_id
     );
     
     let nuevosDetalles = [...compraForm.detalles];
@@ -114,7 +114,7 @@ export default function ComprasPage() {
     } else {
       // Agregar nuevo detalle
       nuevosDetalles.push({
-        id_Producto: detalleActual.id_Producto,
+        producto_id: detalleActual.producto_id,
         nombre: productoSeleccionado.nombre,
         cantidad: detalleActual.cantidad,
         costo_unitario: detalleActual.costo_unitario,
@@ -134,7 +134,7 @@ export default function ComprasPage() {
     
     // Resetear detalle actual
     setDetalleActual({
-      id_Producto: '',
+      producto_id: '',
       cantidad: 1,
       costo_unitario: 0
     });
@@ -160,7 +160,7 @@ export default function ComprasPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!compraForm.id_Proveedor) {
+    if (!compraForm.proveedor_id) {
       alert('Por favor seleccione un proveedor');
       return;
     }
@@ -181,7 +181,7 @@ export default function ComprasPage() {
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Error al registrar compra');
+        throw new Error(error.error || error.Mensaje || 'Error al registrar compra');
       }
       
       const data = await response.json();
@@ -201,7 +201,7 @@ export default function ComprasPage() {
         fecha: new Date().toISOString().split('T')[0],
         hora: new Date().toTimeString().split(' ')[0].substring(0, 5),
         total: 0,
-        id_Proveedor: '',
+        proveedor_id: '',
         detalles: []
       });
     } catch (err) {
@@ -222,7 +222,7 @@ export default function ComprasPage() {
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Error al eliminar compra');
+        throw new Error(error.error || error.Mensaje || 'Error al eliminar compra');
       }
       
       const data = await response.json();
@@ -302,11 +302,11 @@ export default function ComprasPage() {
             
             <FormSelect
               label="Proveedor"
-              name="id_Proveedor"
-              value={compraForm.id_Proveedor}
+              name="proveedor_id" // Cambiado de id_Proveedor
+              value={compraForm.proveedor_id}
               onChange={handleCompraChange}
               options={proveedores.map(p => ({ 
-                value: p.id_Proveedor, 
+                value: p._id, // Cambiado de id_Proveedor
                 label: p.nombre 
               }))}
               required
@@ -319,11 +319,11 @@ export default function ComprasPage() {
               <div className="grid grid-cols-3 gap-3 mb-3">
                 <FormSelect
                   label="Producto"
-                  name="id_Producto"
-                  value={detalleActual.id_Producto}
+                  name="producto_id" // Cambiado de id_Producto
+                  value={detalleActual.producto_id}
                   onChange={handleDetalleChange}
                   options={productos.map(p => ({ 
-                    value: p.id_Producto, 
+                    value: p._id, // Cambiado de id_Producto
                     label: p.nombre 
                   }))}
                 />
@@ -439,7 +439,7 @@ export default function ComprasPage() {
             <button
               type="submit"
               className="btn-primary w-full p-3 rounded-lg flex items-center justify-center"
-              disabled={!compraForm.id_Proveedor || compraForm.detalles.length === 0}
+              disabled={!compraForm.proveedor_id || compraForm.detalles.length === 0}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
@@ -462,7 +462,7 @@ export default function ComprasPage() {
             <div className="space-y-4">
               {compras.map(compra => (
                 <div 
-                  key={compra.id_Compra} 
+                  key={compra._id} // Cambiado de id_Compra
                   className="shine-card p-4 flex flex-col"
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -471,9 +471,9 @@ export default function ComprasPage() {
                         <span className="text-lg">🛒</span>
                       </div>
                       <div>
-                        <h3 className="text-white font-medium">Compra #{compra.id_Compra}</h3>
+                        <h3 className="text-white font-medium">Compra #{compra._id.substring(0, 8)}</h3>
                         <p className="text-[#94a3b8] text-sm">
-                          {new Date(compra.fecha).toLocaleDateString()} - {compra.hora.slice(0, 5)}
+                          {new Date(compra.fecha).toLocaleDateString()} - {compra.hora ? compra.hora.slice(0, 5) : ''}
                         </p>
                       </div>
                     </div>
@@ -483,14 +483,14 @@ export default function ComprasPage() {
                   <div className="flex justify-between items-center">
                     <div className="flex flex-wrap gap-2">
                       <span className="badge bg-[#334155] text-white">
-                        Proveedor: {compra.proveedor_nombre || 'No asignado'}
+                        Proveedor: {compra.proveedor ? compra.proveedor.nombre : 'No asignado'}
                       </span>
                       <span className="badge bg-[#334155] text-white">
                         Productos: {compra.detalles ? compra.detalles.length : 0}
                       </span>
                     </div>
                     <button
-                      onClick={() => handleDeleteCompra(compra.id_Compra)}
+                      onClick={() => handleDeleteCompra(compra._id)} // Cambiado de id_Compra
                       className="p-2 bg-[#334155] text-[#f87171] rounded-lg hover:bg-[#475569] transition-colors"
                       title="Eliminar"
                     >

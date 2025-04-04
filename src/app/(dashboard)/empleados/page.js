@@ -8,17 +8,17 @@ export default function EmpleadosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado para el formulario
+  // Estado para el formulario - adaptado para MongoDB
   const [empleadoForm, setEmpleadoForm] = useState({
     nombre: '',
     telefono: '',
     email: '',
-    id_Sueldo: '',
+    id_Sueldo: '', // Esto se usa solo para el formulario, luego se transformará
   });
   
-  // Estado para edición
+  // Estado para edición - adaptado para MongoDB
   const [editForm, setEditForm] = useState({
-    id_Empleado: null,
+    _id: null, // Cambiado de id_Empleado a _id
     nombre: '',
     telefono: '',
     email: '',
@@ -69,21 +69,21 @@ export default function EmpleadosPage() {
     });
   };
   
-  // Iniciar modo edición
+  // Iniciar modo edición - adaptado para MongoDB
   const handleEditMode = (empleado) => {
     setEditForm({
-      id_Empleado: empleado.id_Empleado,
+      _id: empleado._id, // Cambiado de id_Empleado a _id
       nombre: empleado.nombre,
       telefono: empleado.telefono || '',
       email: empleado.email || '',
-      id_Sueldo: empleado.id_Sueldo || ''
+      id_Sueldo: empleado.puesto?._id || '' // Cambiado para acceder a puesto._id
     });
   };
   
-  // Cancelar edición
+  // Cancelar edición - adaptado para MongoDB
   const handleCancelEdit = () => {
     setEditForm({
-      id_Empleado: null,
+      _id: null, // Cambiado de id_Empleado a _id
       nombre: '',
       telefono: '',
       email: '',
@@ -91,7 +91,7 @@ export default function EmpleadosPage() {
     });
   };
   
-  // Guardar empleado editado
+  // Guardar empleado editado - adaptado para MongoDB
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     
@@ -133,7 +133,7 @@ export default function EmpleadosPage() {
     }
   };
   
-  // Enviar formulario para nuevo empleado
+  // Enviar formulario para nuevo empleado - adaptado para MongoDB
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -180,7 +180,7 @@ export default function EmpleadosPage() {
     }
   };
   
-  // Eliminar empleado
+  // Eliminar empleado - adaptado para MongoDB
   const handleDeleteEmpleado = async (id) => {
     if (!confirm('¿Está seguro de eliminar este empleado?')) {
       return;
@@ -303,7 +303,7 @@ export default function EmpleadosPage() {
                 >
                   <option value="">Seleccione un puesto</option>
                   {sueldos.map(s => (
-                    <option key={s.id_Sueldo} value={s.id_Sueldo}>
+                    <option key={s._id} value={s._id}>
                     {s.puesto} - ${parseFloat(s.sueldo).toFixed(2)}
                     </option>
                   ))}
@@ -347,21 +347,21 @@ export default function EmpleadosPage() {
                   </thead>
                   <tbody>
                     {empleados.map(empleado => (
-                      <tr key={empleado.id_Empleado}>
-                        <td>{empleado.id_Empleado}</td>
+                      <tr key={empleado._id}>
+                        <td>{empleado._id.toString().substring(0, 8)}...</td>
                         <td className="font-medium">{empleado.nombre}</td>
                         <td>
                           {empleado.puesto ? (
                             <span className="bg-[#334155] text-white px-2 py-1 rounded text-xs">
-                              {empleado.puesto}
+                              {empleado.puesto.puesto}
                             </span>
                           ) : (
                             <span className="text-[#94a3b8] text-xs">No asignado</span>
                           )}
                         </td>
                         <td className="text-right">
-                          {empleado.sueldo ? (
-                            <span className="text-[#38bdf8] font-medium">${parseFloat(empleado.sueldo).toFixed(2)}</span>
+                          {empleado.puesto ? (
+                            <span className="text-[#38bdf8] font-medium">${parseFloat(empleado.puesto.sueldo).toFixed(2)}</span>
                           ) : (
                             <span className="text-[#94a3b8]">N/A</span>
                           )}
@@ -377,7 +377,7 @@ export default function EmpleadosPage() {
                               </svg>
                             </button>
                             <button
-                              onClick={() => handleDeleteEmpleado(empleado.id_Empleado)}
+                              onClick={() => handleDeleteEmpleado(empleado._id)}
                               className="p-1 text-[#f87171] hover:text-[#ef4444] rounded"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -403,7 +403,7 @@ export default function EmpleadosPage() {
       </div>
       
       {/* Modal de edición */}
-      {editForm.id_Empleado && (
+      {editForm._id && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-[#1e293b] p-6 rounded-lg shadow-lg w-full max-w-md border border-[#334155]">
             <div className="flex justify-between items-center mb-4">
@@ -463,7 +463,7 @@ export default function EmpleadosPage() {
                 >
                   <option value="">Seleccione un puesto</option>
                   {sueldos.map(s => (
-                    <option key={s.id_Sueldo} value={s.id_Sueldo}>
+                    <option key={s._id} value={s._id}>
                       {s.puesto} - ${parseFloat(s.sueldo).toFixed(2)}
                     </option>
                   ))}
