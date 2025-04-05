@@ -176,11 +176,8 @@ export default function VentasPage() {
       
       console.log("Enviando datos:", JSON.stringify(datosVenta));
       
-      const response = await fetch('/api/ventas', {
+      const response = await fetchWithAuth('/api/ventas', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(datosVenta)
       });
       
@@ -198,7 +195,7 @@ export default function VentasPage() {
       }
       
       // Actualizar lista de ventas
-      const ventasRes = await fetch('/api/ventas');
+      const ventasRes = await fetchWithAuth('/api/ventas');
       const ventasData = await ventasRes.json();
       setVentas(ventasData);
       
@@ -222,7 +219,7 @@ export default function VentasPage() {
     }
     
     try {
-      const response = await fetch(`/api/ventas?id=${id}`, {
+      const response = await fetchWithAuth(`/api/ventas?id=${id}`, {
         method: 'DELETE',
       });
       
@@ -239,7 +236,7 @@ export default function VentasPage() {
       }
       
       // Actualizar lista de ventas
-      const ventasRes = await fetch('/api/ventas');
+      const ventasRes = await fetchWithAuth('/api/ventas');
       const ventasData = await ventasRes.json();
       setVentas(ventasData);
     } catch (err) {
@@ -259,7 +256,7 @@ export default function VentasPage() {
   // Generar reporte de ventas
   const handleGenerarReporte = async () => {
     try {
-      const res = await fetch(
+      const res = await fetchWithAuth(
         `/api/ventas?fecha_inicio=${reporteDates.fecha_inicio}&fecha_fin=${reporteDates.fecha_fin}`
       );
       

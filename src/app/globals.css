@@ -27,6 +27,7 @@ body {
   @apply bg-black text-white;
 }
 
+
 /* Sidebar styles with minimalist gradient */
 .sidebar {
   @apply bg-gradient-to-b from-black via-[#111111] to-[#222222] text-white;

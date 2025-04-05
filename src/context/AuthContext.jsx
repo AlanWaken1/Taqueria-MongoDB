@@ -47,44 +47,47 @@ export function AuthProvider({ children }) {
   }, []);
   
   // Función para iniciar sesión - ASEGÚRATE DE QUE ESTA FUNCIÓN EXISTA
-const login = async (email, password) => {
-  try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error || 'Error al iniciar sesión');
+  const login = async (email, password) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al iniciar sesión');
+      }
+      
+      // Comprobar que el token existe en la respuesta
+      if (!data.token) {
+        console.error('La respuesta del servidor no incluye un token');
+        throw new Error('Token no proporcionado por el servidor');
+      }
+      
+      // Clear localStorage first to avoid any corrupted state
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      
+      // Then set new values
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('user', JSON.stringify(data.usuario));
+      
+      console.log('Token almacenado correctamente:', data.token.substring(0, 15) + '...');
+      
+      // Actualizar estado
+      setUser(data.usuario);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error completo en login:', error);
+      return { success: false, error: error.message };
     }
-    
-    // Comprobar que el token existe en la respuesta
-    if (!data.token) {
-      console.error('La respuesta del servidor no incluye un token');
-      throw new Error('Token no proporcionado por el servidor');
-    }
-    
-    // Log para depuración (truncar el token por seguridad)
-    console.log('Token recibido del servidor:', data.token.substring(0, 15) + '...');
-    
-    // Guardar token y datos de usuario
-    localStorage.setItem('authToken', data.token);
-    localStorage.setItem('user', JSON.stringify(data.usuario));
-    
-    // Actualizar estado
-    setUser(data.usuario);
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error completo en login:', error);
-    return { success: false, error: error.message };
-  }
-};
+  };
   
   // Función para cerrar sesión
   const logout = () => {
@@ -104,12 +107,8 @@ const login = async (email, password) => {
   const fetchWithAuth = async (url, options = {}) => {
     const token = localStorage.getItem('authToken');
     
-    // Verificar que el token realmente existe antes de usarlo
-    if (!token) {
-      console.warn('No se encontró token de autenticación');
-    } else {
-      console.log('Token encontrado:', token.substring(0, 15) + '...');
-    }
+    // Add debugging
+    console.log('Token usado en fetchWithAuth:', token ? token.substring(0, 15) + '...' : 'no token');
     
     const headers = {
       'Content-Type': 'application/json',
@@ -117,7 +116,9 @@ const login = async (email, password) => {
     };
     
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`; // Asegúrate de que haya un espacio después de "Bearer"
+      // Ensure 'Bearer ' prefix with a space after
+      headers['Authorization'] = `Bearer ${token}`;
+      console.log('Authorization header:', headers['Authorization'].substring(0, 20) + '...');
     }
     
     const config = {
@@ -125,7 +126,14 @@ const login = async (email, password) => {
       headers
     };
     
-    return fetch(url, config);
+    const response = await fetch(url, config);
+    
+    // If getting a 401, log the response for debugging
+    if (response.status === 401) {
+      console.error('401 Unauthorized - Response:', await response.text());
+    }
+    
+    return response;
   };
   
   // Valor del contexto

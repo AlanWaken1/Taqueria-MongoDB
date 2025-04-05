@@ -348,7 +348,7 @@ export default function ComprasPage() {
                     <input
                       type="number"
                       name="costo_unitario"
-                      value={detalleActual.costo_unitario}
+                      value={isNaN(detalleActual.costo_unitario) ? '' : detalleActual.costo_unitario}
                       onChange={handleDetalleChange}
                       min="0.01"
                       step="0.01"

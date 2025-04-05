@@ -1,22 +1,32 @@
-// src/app/api/platillos/route.js
+// src/app/api/gastos/route.js
 import { executeTransaction } from '@/lib/mongodb';
 import { NextResponse } from 'next/server';
-import Platillo from '@/models/Platillo';
-import Producto from '@/models/Producto';
-import Venta from '@/models/Venta';
+import Gasto from '@/models/Gasto';
+import Empleado from '@/models/Empleado';
+import Compra from '@/models/Compra';
 import mongoose from 'mongoose';
 import { protectRoute, checkRole } from '@/lib/auth';
 
-// Obtener todos los platillos
+// Obtener todos los gastos
 export async function GET(request) {
   try {
-    // No restringimos el acceso a la lista de platillos (es información pública del menú)
+    // Verificar autenticación
+    const authResult = await protectRoute(request);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: 401 });
+    }
+    
+    // Verificar roles - solo admin puede ver gastos (información financiera sensible)
+    if (!checkRole(authResult.user, ['admin'])) {
+      return NextResponse.json({ error: 'No tienes permisos para ver los gastos' }, { status: 403 });
+    }
+
     const result = await executeTransaction(async () => {
-      const platillos = await Platillo.find({})
-        .sort({ nombre: 1 })
+      const gastos = await Gasto.find({})
+        .sort({ createdAt: -1 })
         .lean();
       
-      return platillos;
+      return gastos;
     });
     
     if (result.success) {
@@ -29,7 +39,7 @@ export async function GET(request) {
   }
 }
 
-// Agregar un platillo
+// Crear un gasto
 export async function POST(request) {
   try {
     // Verificar autenticación
@@ -38,68 +48,67 @@ export async function POST(request) {
       return NextResponse.json({ error: authResult.error }, { status: 401 });
     }
     
-    // Verificar roles - solo admin y encargado pueden crear platillos
+    // Verificar roles - solo admin y encargado pueden registrar gastos
     if (!checkRole(authResult.user, ['admin', 'encargado'])) {
-      return NextResponse.json({ error: 'No tienes permisos para agregar platillos' }, { status: 403 });
+      return NextResponse.json({ error: 'No tienes permisos para registrar gastos' }, { status: 403 });
     }
 
-    const { nombre, precio, categoria, ingredientes } = await request.json();
+    const { concepto, total, compra_id, empleado_id, tipo } = await request.json();
     
     const result = await executeTransaction(async () => {
-      // Validar el nombre
-      if (!nombre || nombre.trim() === '') {
-        throw new Error('El nombre del platillo no puede estar vacío');
+      // Validar el concepto
+      if (!concepto || concepto.trim() === '') {
+        throw new Error('El concepto es requerido');
       }
       
-      // Validar el precio
-      if (!precio || precio <= 0) {
-        throw new Error('El precio no puede ser negativo o quedarse en 0');
+      // Validar que el total no sea negativo
+      if (total < 0) {
+        throw new Error('El total no puede ser negativo');
       }
       
-      // Validar la categoría
-      if (!categoria || categoria.trim() === '') {
-        throw new Error('La categoría no puede estar vacía');
-      }
-      
-      // Verificar si ya existe un platillo con el mismo nombre
-      const platilloExistente = await Platillo.findOne({ nombre });
-      if (platilloExistente) {
-        throw new Error('Ya existe un platillo con ese nombre');
-      }
-      
-      // Procesar ingredientes si se proporcionaron
-      let ingredientesProcessed = [];
-      if (ingredientes && ingredientes.length > 0) {
-        for (const ingrediente of ingredientes) {
-          const producto = await Producto.findById(ingrediente.producto_id);
-          if (!producto) {
-            throw new Error(`El producto con ID ${ingrediente.producto_id} no existe`);
-          }
-          
-          ingredientesProcessed.push({
-            producto_id: producto._id,
-            nombre: producto.nombre,
-            cantidad: ingrediente.cantidad
-          });
-        }
-      }
-      
-      // Crear el platillo con información de auditoría
-      const platillo = await Platillo.create({
-        nombre,
-        precio,
-        categoria,
-        ingredientes: ingredientesProcessed,
-        // Campos de auditoría
+      // Preparar el objeto gasto
+      const gastoData = {
+        concepto,
+        total: parseFloat(total) || 0, // Convertir explícitamente a número
+        fecha: new Date(),
+        tipo: tipo || 'otro',
+        // Información de auditoría
         creadoPor: {
           id: authResult.user.id,
           email: authResult.user.email,
           rol: authResult.user.rol
         },
         fechaCreacion: new Date()
-      });
+      };
       
-      return { Mensaje: "Platillo agregado correctamente", platillo };
+      // Si hay una compra asociada, obtener sus datos
+      if (compra_id) {
+        const compra = await Compra.findById(compra_id);
+        if (!compra) {
+          throw new Error('La compra especificada no existe');
+        }
+        gastoData.compra_id = compra._id;
+      }
+      
+      // Si hay un empleado asociado, obtener sus datos
+      if (empleado_id) {
+        const empleado = await Empleado.findById(empleado_id);
+        if (!empleado) {
+          throw new Error('El empleado especificado no existe');
+        }
+        gastoData.empleado = {
+          _id: empleado._id,
+          nombre: empleado.nombre
+        };
+      }
+      
+      // Crear el gasto
+      const gasto = await Gasto.create(gastoData);
+      
+      return { 
+        Mensaje: "Gasto registrado correctamente",
+        gasto
+      };
     });
     
     if (result.success) {
@@ -112,7 +121,7 @@ export async function POST(request) {
   }
 }
 
-// Actualizar un platillo
+// Actualizar un gasto
 export async function PUT(request) {
   try {
     // Verificar autenticación
@@ -121,83 +130,84 @@ export async function PUT(request) {
       return NextResponse.json({ error: authResult.error }, { status: 401 });
     }
     
-    // Verificar roles - solo admin y encargado pueden modificar platillos
-    if (!checkRole(authResult.user, ['admin', 'encargado'])) {
-      return NextResponse.json({ error: 'No tienes permisos para modificar platillos' }, { status: 403 });
+    // Verificar roles - solo admin puede modificar gastos
+    if (!checkRole(authResult.user, ['admin'])) {
+      return NextResponse.json({ error: 'No tienes permisos para modificar gastos' }, { status: 403 });
     }
 
-    const { _id, nombre, precio, categoria, ingredientes } = await request.json();
+    const { _id, concepto, total, compra_id, empleado_id, tipo } = await request.json();
     
     const result = await executeTransaction(async () => {
-      // Verificar que el platillo exista
-      const platillo = await Platillo.findById(_id);
-      if (!platillo) {
-        throw new Error('El platillo no existe');
+      // Verificar que el gasto exista
+      const gasto = await Gasto.findById(_id);
+      if (!gasto) {
+        throw new Error('El gasto no existe');
       }
       
-      // Validar el nombre
-      if (!nombre || nombre.trim() === '') {
-        throw new Error('El nombre del platillo no puede estar vacío');
+      // Validar el concepto
+      if (!concepto || concepto.trim() === '') {
+        throw new Error('El concepto es requerido');
       }
       
-      // Validar el precio
-      if (!precio || precio <= 0) {
-        throw new Error('El precio no puede ser negativo');
+      // Validar que el total no sea negativo
+      if (total < 0) {
+        throw new Error('El total no puede ser negativo');
       }
       
-      // Validar la categoría
-      if (!categoria || categoria.trim() === '') {
-        throw new Error('La categoría no puede estar vacía');
-      }
+      // Preparar el objeto de actualización
+      const updateData = {
+        concepto,
+        total: parseFloat(total) || 0, // Convertir explícitamente a número
+        tipo: tipo || gasto.tipo,
+        // Información de auditoría
+        actualizadoPor: {
+          id: authResult.user.id,
+          email: authResult.user.email,
+          rol: authResult.user.rol
+        },
+        fechaActualizacion: new Date()
+      };
       
-      // Verificar si ya existe otro platillo con el mismo nombre
-      const platilloExistente = await Platillo.findOne({ 
-        nombre, 
-        _id: { $ne: _id } 
-      });
-      
-      if (platilloExistente) {
-        throw new Error('Ya existe otro platillo con ese nombre');
-      }
-      
-      // Procesar ingredientes si se proporcionaron
-      let ingredientesProcessed = platillo.ingredientes;
-      if (ingredientes) {
-        ingredientesProcessed = [];
-        for (const ingrediente of ingredientes) {
-          const producto = await Producto.findById(ingrediente.producto_id);
-          if (!producto) {
-            throw new Error(`El producto con ID ${ingrediente.producto_id} no existe`);
+      // Actualizar la compra asociada si es necesario
+      if (compra_id !== undefined) {
+        if (compra_id) {
+          const compra = await Compra.findById(compra_id);
+          if (!compra) {
+            throw new Error('La compra especificada no existe');
           }
-          
-          ingredientesProcessed.push({
-            producto_id: producto._id,
-            nombre: producto.nombre,
-            cantidad: ingrediente.cantidad
-          });
+          updateData.compra_id = compra._id;
+        } else {
+          updateData.compra_id = null;
         }
       }
       
-      // Actualizar el platillo con información de auditoría
-      const platilloActualizado = await Platillo.findByIdAndUpdate(
-        _id,
-        {
-          nombre,
-          precio,
-          categoria,
-          ingredientes: ingredientesProcessed,
-          // Campos de auditoría para actualización
-          actualizadoPor: {
-            id: authResult.user.id,
-            email: authResult.user.email,
-            rol: authResult.user.rol
-          },
-          fechaActualizacion: new Date()
-        },
+      // Actualizar el empleado asociado si es necesario
+      if (empleado_id !== undefined) {
+        if (empleado_id) {
+          const empleado = await Empleado.findById(empleado_id);
+          if (!empleado) {
+            throw new Error('El empleado especificado no existe');
+          }
+          updateData.empleado = {
+            _id: empleado._id,
+            nombre: empleado.nombre
+          };
+        } else {
+          updateData.empleado = null;
+        }
+      }
+      
+      // Actualizar el gasto
+      const gastoActualizado = await Gasto.findByIdAndUpdate(
+        _id, 
+        updateData,
         { new: true, runValidators: true }
       );
       
-      return { Mensaje: "El platillo fue modificado", platillo: platilloActualizado };
+      return { 
+        Mensaje: "Gasto actualizado correctamente",
+        gasto: gastoActualizado
+      };
     });
     
     if (result.success) {
@@ -210,7 +220,7 @@ export async function PUT(request) {
   }
 }
 
-// Eliminar un platillo
+// Eliminar un gasto
 export async function DELETE(request) {
   try {
     // Verificar autenticación
@@ -219,46 +229,37 @@ export async function DELETE(request) {
       return NextResponse.json({ error: authResult.error }, { status: 401 });
     }
     
-    // Verificar roles - solo admin puede eliminar platillos
+    // Verificar roles - solo admin puede eliminar gastos
     if (!checkRole(authResult.user, ['admin'])) {
-      return NextResponse.json({ error: 'No tienes permisos para eliminar platillos' }, { status: 403 });
+      return NextResponse.json({ error: 'No tienes permisos para eliminar gastos' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
     if (!id) {
-      return NextResponse.json({ error: 'ID de platillo no proporcionado' }, { status: 400 });
+      return NextResponse.json({ error: 'ID de gasto no proporcionado' }, { status: 400 });
     }
     
     const result = await executeTransaction(async () => {
-      // Verificar si hay ventas que incluyen este platillo
-      const ventasConPlatillo = await Venta.countDocuments({
-        'detalles.platillo_id': new mongoose.Types.ObjectId(id)
-      });
-      
-      if (ventasConPlatillo > 0) {
-        throw new Error('No se puede eliminar el platillo porque está asociado a ventas');
+      // Guardar información del gasto para registro de auditoría
+      const gasto = await Gasto.findById(id);
+      if (!gasto) {
+        throw new Error('El gasto no existe');
       }
       
-      // Obtener información del platillo antes de eliminarlo (para auditoría)
-      const platillo = await Platillo.findById(id);
-      if (!platillo) {
-        throw new Error('El platillo no existe');
-      }
+      // Eliminar el gasto
+      await Gasto.findByIdAndDelete(id);
       
-      // Eliminar el platillo
-      await Platillo.findByIdAndDelete(id);
-      
-      // Aquí podrías agregar un registro de auditoría de la eliminación
+      // Aquí podrías crear un registro de eliminación en una colección de auditoría
       // await AuditoriaLog.create({
-      //   accion: 'ELIMINAR_PLATILLO',
-      //   entidad: 'Platillo',
+      //   accion: 'ELIMINAR_GASTO',
+      //   entidad: 'Gasto',
       //   entidadId: id,
       //   datos: {
-      //     nombre: platillo.nombre,
-      //     precio: platillo.precio,
-      //     categoria: platillo.categoria
+      //     concepto: gasto.concepto,
+      //     total: gasto.total,
+      //     fecha: gasto.fecha
       //   },
       //   usuarioId: authResult.user.id,
       //   usuarioEmail: authResult.user.email,
@@ -266,7 +267,7 @@ export async function DELETE(request) {
       //   fecha: new Date()
       // });
       
-      return { Mensaje: "El platillo fue eliminado" };
+      return { Mensaje: "Gasto eliminado correctamente" };
     });
     
     if (result.success) {
