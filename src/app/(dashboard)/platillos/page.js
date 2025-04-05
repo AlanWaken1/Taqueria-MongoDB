@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 export default function PlatillosPage() {
+  const { fetchWithAuth } = useAuth();
   const [platillos, setPlatillos] = useState([]);
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,31 +33,31 @@ export default function PlatillosPage() {
     ingredientes: []
   });
   
-  // Cargar datos al montar
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Cargar platillos
-        const platillosRes = await fetch('/api/platillos');
-        if (!platillosRes.ok) throw new Error('Error al cargar platillos');
-        const platillosData = await platillosRes.json();
-        setPlatillos(platillosData);
-        
-        // Cargar productos para ingredientes
-        const productosRes = await fetch('/api/productos');
-        if (!productosRes.ok) throw new Error('Error al cargar productos');
-        const productosData = await productosRes.json();
-        setProductos(productosData);
-        
-        setLoading(false);
-      } catch (err) {
-        setError(err.message);
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
+ // Cargar datos al montar
+ useEffect(() => {
+  const fetchData = async () => {
+    try {
+      // Cargar platillos
+      const platillosRes = await fetchWithAuth('/api/platillos');
+      if (!platillosRes.ok) throw new Error('Error al cargar platillos');
+      const platillosData = await platillosRes.json();
+      setPlatillos(platillosData);
+      
+      // Cargar productos para ingredientes
+      const productosRes = await fetchWithAuth('/api/productos');
+      if (!productosRes.ok) throw new Error('Error al cargar productos');
+      const productosData = await productosRes.json();
+      setProductos(productosData);
+      
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+  
+  fetchData();
+}, [fetchWithAuth]);
   
   // Manejar cambios en el formulario
   const handleChange = (e) => {
@@ -183,11 +185,8 @@ export default function PlatillosPage() {
     }
     
     try {
-      const response = await fetch('/api/platillos', {
+      const response = await fetchWithAuth('/api/platillos', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(editForm)
       });
       
@@ -204,7 +203,7 @@ export default function PlatillosPage() {
       }
       
       // Actualizar lista de platillos
-      const res = await fetch('/api/platillos');
+      const res = await fetchWithAuth('/api/platillos');
       const platillosData = await res.json();
       setPlatillos(platillosData);
       
@@ -225,11 +224,8 @@ export default function PlatillosPage() {
     }
     
     try {
-      const response = await fetch('/api/platillos', {
+      const response = await fetchWithAuth('/api/platillos', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(platilloForm)
       });
       
@@ -246,7 +242,7 @@ export default function PlatillosPage() {
       }
       
       // Actualizar lista de platillos
-      const res = await fetch('/api/platillos');
+      const res = await fetchWithAuth('/api/platillos');
       const platillosData = await res.json();
       setPlatillos(platillosData);
       
@@ -269,8 +265,8 @@ export default function PlatillosPage() {
     }
     
     try {
-      const response = await fetch(`/api/platillos?id=${id}`, {
-        method: 'DELETE',
+      const response = await fetchWithAuth(`/api/platillos?id=${id}`, {
+        method: 'DELETE'
       });
       
       if (!response.ok) {
@@ -286,7 +282,7 @@ export default function PlatillosPage() {
       }
       
       // Actualizar lista de platillos
-      const res = await fetch('/api/platillos');
+      const res = await fetchWithAuth('/api/platillos');
       const platillosData = await res.json();
       setPlatillos(platillosData);
     } catch (err) {

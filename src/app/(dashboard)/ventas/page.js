@@ -1,8 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext'; // AÑADIR ESTA IMPORTACIÓN
+
 
 export default function VentasPage() {
+  const { fetchWithAuth } = useAuth(); // AÑADIR ESTO
   const [ventas, setVentas] = useState([]);
   const [platillos, setPlatillos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,27 +37,28 @@ export default function VentasPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Cargar ventas
-        const ventasRes = await fetch('/api/ventas');
+        // Cargar ventas CON AUTENTICACIÓN
+        const ventasRes = await fetchWithAuth('/api/ventas');
         if (!ventasRes.ok) throw new Error('Error al cargar ventas');
         const ventasData = await ventasRes.json();
         setVentas(ventasData);
         
-        // Cargar platillos
-        const platillosRes = await fetch('/api/platillos');
+        // Cargar platillos CON AUTENTICACIÓN
+        const platillosRes = await fetchWithAuth('/api/platillos');
         if (!platillosRes.ok) throw new Error('Error al cargar platillos');
         const platillosData = await platillosRes.json();
         setPlatillos(platillosData);
         
         setLoading(false);
       } catch (err) {
+        console.error("Error al cargar datos:", err);
         setError(err.message);
         setLoading(false);
       }
     };
     
     fetchData();
-  }, []);
+  }, [fetchWithAuth]); // Incluir fetchWithAuth en las dependencias
   
   // Manejar cambios en el formulario de venta
   const handleVentaChange = (e) => {

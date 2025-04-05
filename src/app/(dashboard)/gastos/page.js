@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 export default function GastosPage() {
+  const { fetchWithAuth } = useAuth();
   const [gastos, setGastos] = useState([]);
   const [empleados, setEmpleados] = useState([]);
   const [compras, setCompras] = useState([]);
@@ -31,19 +33,19 @@ export default function GastosPage() {
     const fetchData = async () => {
       try {
         // Cargar gastos
-        const gastosRes = await fetch('/api/gastos');
+        const gastosRes = await fetchWithAuth('/api/gastos');
         if (!gastosRes.ok) throw new Error('Error al cargar gastos');
         const gastosData = await gastosRes.json();
         setGastos(gastosData);
         
         // Cargar empleados
-        const empleadosRes = await fetch('/api/empleados');
+        const empleadosRes = await fetchWithAuth('/api/empleados');
         if (!empleadosRes.ok) throw new Error('Error al cargar empleados');
         const empleadosData = await empleadosRes.json();
         setEmpleados(empleadosData);
         
         // Cargar compras
-        const comprasRes = await fetch('/api/compras');
+        const comprasRes = await fetchWithAuth('/api/compras');
         if (!comprasRes.ok) throw new Error('Error al cargar compras');
         const comprasData = await comprasRes.json();
         setCompras(comprasData);
@@ -52,12 +54,11 @@ export default function GastosPage() {
       } catch (err) {
         setError(err.message);
         setLoading(false);
-        console.error('Error fetching data:', err);
       }
     };
     
     fetchData();
-  }, []);
+  }, [fetchWithAuth]);
   
   // Manejar cambios en el formulario - Manejo seguro de valores numéricos
   const handleChange = (e) => {
@@ -119,11 +120,8 @@ export default function GastosPage() {
     };
     
     try {
-      const response = await fetch('/api/gastos', {
+      const response = await fetchWithAuth('/api/gastos', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(formData)
       });
       
@@ -140,7 +138,7 @@ export default function GastosPage() {
       }
       
       // Actualizar lista de gastos
-      const gastosRes = await fetch('/api/gastos');
+      const gastosRes = await fetchWithAuth('/api/gastos');
       const gastosData = await gastosRes.json();
       setGastos(gastosData);
       
@@ -171,11 +169,8 @@ export default function GastosPage() {
     };
     
     try {
-      const response = await fetch('/api/gastos', {
+      const response = await fetchWithAuth('/api/gastos', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(formData)
       });
       
@@ -192,7 +187,7 @@ export default function GastosPage() {
       }
       
       // Actualizar lista de gastos
-      const gastosRes = await fetch('/api/gastos');
+      const gastosRes = await fetchWithAuth('/api/gastos');
       const gastosData = await gastosRes.json();
       setGastos(gastosData);
       
@@ -215,8 +210,8 @@ export default function GastosPage() {
     }
     
     try {
-      const response = await fetch(`/api/gastos?id=${id}`, {
-        method: 'DELETE',
+      const response = await fetchWithAuth(`/api/gastos?id=${id}`, {
+        method: 'DELETE'
       });
       
       if (!response.ok) {
@@ -232,9 +227,10 @@ export default function GastosPage() {
       }
       
       // Actualizar lista de gastos
-      const gastosRes = await fetch('/api/gastos');
+      const gastosRes = await fetchWithAuth('/api/gastos');
       const gastosData = await gastosRes.json();
       setGastos(gastosData);
+      
     } catch (err) {
       alert(err.message);
     }

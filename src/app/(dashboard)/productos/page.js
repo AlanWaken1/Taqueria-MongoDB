@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProductosPage() {
+  const { fetchWithAuth } = useAuth();
   const [productos, setProductos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,13 +29,13 @@ export default function ProductosPage() {
     const fetchData = async () => {
       try {
         // Cargar productos
-        const productosRes = await fetch('/api/productos');
+        const productosRes = await fetchWithAuth('/api/productos');
         if (!productosRes.ok) throw new Error('Error al cargar productos');
         const productosData = await productosRes.json();
         setProductos(productosData);
         
         // Cargar proveedores
-        const proveedoresRes = await fetch('/api/proveedores');
+        const proveedoresRes = await fetchWithAuth('/api/proveedores');
         if (!proveedoresRes.ok) throw new Error('Error al cargar proveedores');
         const proveedoresData = await proveedoresRes.json();
         setProveedores(proveedoresData);
@@ -46,7 +48,7 @@ export default function ProductosPage() {
     };
     
     fetchData();
-  }, []);
+  }, [fetchWithAuth]);
   
   // Manejar cambios en el formulario
   const handleChange = (e) => {
@@ -76,11 +78,8 @@ export default function ProductosPage() {
   // Guardar cambios de cantidad - adaptado para MongoDB
   const handleSaveCantidad = async () => {
     try {
-      const response = await fetch('/api/productos', {
+      const response = await fetchWithAuth('/api/productos', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(editCantidad)
       });
       
@@ -97,7 +96,7 @@ export default function ProductosPage() {
       }
       
       // Actualizar lista de productos
-      const productosRes = await fetch('/api/productos');
+      const productosRes = await fetchWithAuth('/api/productos');
       const productosData = await productosRes.json();
       setProductos(productosData);
       
@@ -129,11 +128,8 @@ export default function ProductosPage() {
     }
     
     try {
-      const response = await fetch('/api/productos', {
+      const response = await fetchWithAuth('/api/productos', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(productoForm)
       });
       
@@ -150,7 +146,7 @@ export default function ProductosPage() {
       }
       
       // Actualizar lista de productos
-      const productosRes = await fetch('/api/productos');
+      const productosRes = await fetchWithAuth('/api/productos');
       const productosData = await productosRes.json();
       setProductos(productosData);
       
@@ -173,8 +169,8 @@ export default function ProductosPage() {
     }
     
     try {
-      const response = await fetch(`/api/productos?id=${id}`, {
-        method: 'DELETE',
+      const response = await fetchWithAuth(`/api/productos?id=${id}`, {
+        method: 'DELETE'
       });
       
       if (!response.ok) {
@@ -190,7 +186,7 @@ export default function ProductosPage() {
       }
       
       // Actualizar lista de productos
-      const productosRes = await fetch('/api/productos');
+      const productosRes = await fetchWithAuth('/api/productos');
       const productosData = await productosRes.json();
       setProductos(productosData);
     } catch (err) {

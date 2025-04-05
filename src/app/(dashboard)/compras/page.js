@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FormInput, FormSelect, FormButton, FormCard } from '@/components/ui/Form';
+import { useAuth } from '@/context/AuthContext'; 
 
 export default function ComprasPage() {
+  const { fetchWithAuth } = useAuth();
   const [compras, setCompras] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -34,19 +36,19 @@ export default function ComprasPage() {
         setLoading(true);
         
         // Cargar compras
-        const comprasRes = await fetch('/api/compras');
+        const comprasRes = await fetchWithAuth('/api/compras');
         if (!comprasRes.ok) throw new Error('Error al cargar compras');
         const comprasData = await comprasRes.json();
         setCompras(comprasData);
         
         // Cargar proveedores
-        const proveedoresRes = await fetch('/api/proveedores');
+        const proveedoresRes = await fetchWithAuth('/api/proveedores');
         if (!proveedoresRes.ok) throw new Error('Error al cargar proveedores');
         const proveedoresData = await proveedoresRes.json();
         setProveedores(proveedoresData);
         
         // Cargar productos
-        const productosRes = await fetch('/api/productos');
+        const productosRes = await fetchWithAuth('/api/productos');
         if (!productosRes.ok) throw new Error('Error al cargar productos');
         const productosData = await productosRes.json();
         setProductos(productosData);
@@ -59,7 +61,7 @@ export default function ComprasPage() {
     };
     
     fetchData();
-  }, []);
+  }, [fetchWithAuth]);
   
   // Manejar cambios en el formulario de compra
   const handleCompraChange = (e) => {
@@ -160,6 +162,9 @@ export default function ComprasPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+
+    
+
     if (!compraForm.proveedor_id) {
       alert('Por favor seleccione un proveedor');
       return;
@@ -171,12 +176,9 @@ export default function ComprasPage() {
     }
     
     try {
-      const response = await fetch('/api/compras', {
+      const response = await fetchWithAuth('/api/compras', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(compraForm)
+        body: JSON.stringify(datosCompra)
       });
       
       if (!response.ok) {
@@ -192,7 +194,7 @@ export default function ComprasPage() {
       }
       
       // Actualizar lista de compras
-      const comprasRes = await fetch('/api/compras');
+      const comprasRes = await fetchWithAuth('/api/compras');
       const comprasData = await comprasRes.json();
       setCompras(comprasData);
       
@@ -216,7 +218,7 @@ export default function ComprasPage() {
     }
     
     try {
-      const response = await fetch(`/api/compras?id=${id}`, {
+      const response = await fetchWithAuth(`/api/compras?id=${id}`, {
         method: 'DELETE',
       });
       
@@ -233,7 +235,7 @@ export default function ComprasPage() {
       }
       
       // Actualizar lista de compras
-      const comprasRes = await fetch('/api/compras');
+      const comprasRes = await fetchWithAuth('/api/compras');
       const comprasData = await comprasRes.json();
       setCompras(comprasData);
     } catch (err) {

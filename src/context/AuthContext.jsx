@@ -46,35 +46,45 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, []);
   
-  // Función para iniciar sesión
-  const login = async (email, password) => {
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Error al iniciar sesión');
-      }
-      
-      // Guardar token y datos de usuario
-      localStorage.setItem('authToken', data.token);
-      localStorage.setItem('user', JSON.stringify(data.usuario));
-      
-      // Actualizar estado
-      setUser(data.usuario);
-      
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
+  // Función para iniciar sesión - ASEGÚRATE DE QUE ESTA FUNCIÓN EXISTA
+const login = async (email, password) => {
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al iniciar sesión');
     }
-  };
+    
+    // Comprobar que el token existe en la respuesta
+    if (!data.token) {
+      console.error('La respuesta del servidor no incluye un token');
+      throw new Error('Token no proporcionado por el servidor');
+    }
+    
+    // Log para depuración (truncar el token por seguridad)
+    console.log('Token recibido del servidor:', data.token.substring(0, 15) + '...');
+    
+    // Guardar token y datos de usuario
+    localStorage.setItem('authToken', data.token);
+    localStorage.setItem('user', JSON.stringify(data.usuario));
+    
+    // Actualizar estado
+    setUser(data.usuario);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error completo en login:', error);
+    return { success: false, error: error.message };
+  }
+};
   
   // Función para cerrar sesión
   const logout = () => {
@@ -90,6 +100,34 @@ export function AuthProvider({ children }) {
     return roles.includes(user.rol);
   };
   
+  // Función para realizar solicitudes autenticadas
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = localStorage.getItem('authToken');
+    
+    // Verificar que el token realmente existe antes de usarlo
+    if (!token) {
+      console.warn('No se encontró token de autenticación');
+    } else {
+      console.log('Token encontrado:', token.substring(0, 15) + '...');
+    }
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`; // Asegúrate de que haya un espacio después de "Bearer"
+    }
+    
+    const config = {
+      ...options,
+      headers
+    };
+    
+    return fetch(url, config);
+  };
+  
   // Valor del contexto
   const value = {
     user,
@@ -97,7 +135,8 @@ export function AuthProvider({ children }) {
     login,
     logout,
     hasRole,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    fetchWithAuth
   };
   
   return (

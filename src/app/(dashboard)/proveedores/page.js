@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProveedoresPage() {
+  const { fetchWithAuth } = useAuth();
   const [proveedores, setProveedores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,7 +26,7 @@ export default function ProveedoresPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('/api/proveedores');
+        const response = await fetchWithAuth('/api/proveedores');
         if (!response.ok) throw new Error('Error al cargar proveedores');
         const data = await response.json();
         setProveedores(data);
@@ -36,7 +38,7 @@ export default function ProveedoresPage() {
     };
     
     fetchData();
-  }, []);
+  }, [fetchWithAuth]);
   
   // Manejar cambios en el formulario
   const handleChange = (e) => {
@@ -94,15 +96,12 @@ export default function ProveedoresPage() {
         method = 'PUT';
         body = {
           ...proveedorForm,
-          _id: editMode._id // Cambiado de id_Proveedor a _id
+          _id: editMode._id
         };
       }
       
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(body)
       });
       
@@ -119,7 +118,7 @@ export default function ProveedoresPage() {
       }
       
       // Actualizar lista de proveedores
-      const proveedoresRes = await fetch('/api/proveedores');
+      const proveedoresRes = await fetchWithAuth('/api/proveedores');
       const proveedoresData = await proveedoresRes.json();
       setProveedores(proveedoresData);
       
@@ -146,8 +145,8 @@ export default function ProveedoresPage() {
     }
     
     try {
-      const response = await fetch(`/api/proveedores?id=${id}`, {
-        method: 'DELETE',
+      const response = await fetchWithAuth(`/api/proveedores?id=${id}`, {
+        method: 'DELETE'
       });
       
       if (!response.ok) {
@@ -163,7 +162,7 @@ export default function ProveedoresPage() {
       }
       
       // Actualizar lista de proveedores
-      const proveedoresRes = await fetch('/api/proveedores');
+      const proveedoresRes = await fetchWithAuth('/api/proveedores');
       const proveedoresData = await proveedoresRes.json();
       setProveedores(proveedoresData);
     } catch (err) {

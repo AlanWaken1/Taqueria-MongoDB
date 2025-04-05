@@ -3,8 +3,10 @@ import { useState, useEffect } from 'react';
 import DashboardCharts from '@/components/DashboardCharts';
 import StatsCard from '@/components/StatsCard';
 import { TypewriterEffectSmooth } from "@/components/ui/typewriter-effect";
+import { useAuth } from '@/context/AuthContext';
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     productos: 0,
     platillos: 0,
@@ -16,7 +18,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Configuración para el efecto typewriter
+  // Configuración para typewriter (se mantiene igual)
   const words = [
     { text: "Sistema" },
     { text: "de" },
@@ -24,64 +26,86 @@ export default function DashboardPage() {
     { text: "Taquería", className: "text-[#7dd3fc]" },
   ];
   
+  // Función para hacer fetch con autenticación
+  const fetchAutenticado = async (url) => {
+    try {
+      const token = localStorage.getItem("authToken"); // CORREGIDO: authToken, no token
+      if (!token) throw new Error('No hay token de acceso');
+      
+      const respuesta = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!respuesta.ok) throw new Error(`Error ${respuesta.status}`);
+      return await respuesta.json();
+    } catch (error) {
+      console.error(`Error en fetch a ${url}:`, error);
+      throw new Error(`Error al cargar datos: ${error.message}`);
+    }
+  };
+
   // Cargar datos al montar
   useEffect(() => {
-    const fetchStats = async () => {
+    const cargarDatos = async () => {
       try {
+        if (!user) return; // Esperar hasta tener usuario
+        
         setLoading(true);
+        setError(null);
         
-        // Productos
-        const productosRes = await fetch('/api/productos');
-        if (!productosRes.ok) throw new Error('Error al cargar productos');
-        const productosData = await productosRes.json();
-        
-        // Platillos
-        const platillosRes = await fetch('/api/platillos');
-        if (!platillosRes.ok) throw new Error('Error al cargar platillos');
-        const platillosData = await platillosRes.json();
-        
-        // Ventas
-        const ventasRes = await fetch('/api/ventas');
-        if (!ventasRes.ok) throw new Error('Error al cargar ventas');
-        const ventasData = await ventasRes.json();
-        const ventasTotal = ventasData.reduce((sum, venta) => sum + parseFloat(venta.total), 0);
-        
-        // Compras
-        const comprasRes = await fetch('/api/compras');
-        if (!comprasRes.ok) throw new Error('Error al cargar compras');
-        const comprasData = await comprasRes.json();
-        const comprasTotal = comprasData.reduce((sum, compra) => sum + parseFloat(compra.total), 0);
-        
-        // Empleados
-        const empleadosRes = await fetch('/api/empleados');
-        if (!empleadosRes.ok) throw new Error('Error al cargar empleados');
-        const empleadosData = await empleadosRes.json();
-        
-        // Gastos
-        const gastosRes = await fetch('/api/gastos');
-        if (!gastosRes.ok) throw new Error('Error al cargar gastos');
-        const gastosData = await gastosRes.json();
-        const gastosTotal = gastosData.reduce((sum, gasto) => sum + parseFloat(gasto.total), 0);
-        
+        // Cargar todos los datos en paralelo
+        const [
+          productosData,
+          platillosData,
+          ventasData,
+          comprasData,
+          empleadosData,
+          gastosData
+        ] = await Promise.all([
+          fetchAutenticado('/api/productos'),
+          fetchAutenticado('/api/platillos'),
+          fetchAutenticado('/api/ventas'),
+          fetchAutenticado('/api/compras'),
+          fetchAutenticado('/api/empleados'),
+          fetchAutenticado('/api/gastos')
+        ]);
+
+        // Calcular totales - CORREGIDO el paréntesis
+        const calcularTotal = (data, campo) => 
+          data.reduce((total, item) => total + (Number(item[campo]) || 0), 0);
+
         setStats({
           productos: productosData.length,
           platillos: platillosData.length,
-          ventas: { count: ventasData.length, total: ventasTotal },
-          compras: { count: comprasData.length, total: comprasTotal },
+          ventas: {
+            count: ventasData.length,
+            total: calcularTotal(ventasData, 'total')
+          },
+          compras: {
+            count: comprasData.length,
+            total: calcularTotal(comprasData, 'total')
+          },
           empleados: empleadosData.length,
-          gastos: { count: gastosData.length, total: gastosTotal },
+          gastos: {
+            count: gastosData.length,
+            total: calcularTotal(gastosData, 'total')
+          }
         });
-        
-        setLoading(false);
-      } catch (err) {
-        setError(err.message);
+
+      } catch (error) {
+        console.error("Error al cargar datos:", error);
+        setError(error.message);
+      } finally {
         setLoading(false);
       }
     };
-    
-    fetchStats();
-  }, []);
-  
+
+    cargarDatos();
+  }, [user]); // Se ejecuta cuando cambia el usuario
+
+  // Loading state (se mantiene igual)
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -92,7 +116,8 @@ export default function DashboardPage() {
       </div>
     );
   }
-  
+
+  // Error state (se mantiene igual)
   if (error) {
     return (
       <div className="p-6 bg-[#172231] rounded-lg text-center border border-[#38bdf8]">

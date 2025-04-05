@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 export default function SueldosPage() {
+  const { fetchWithAuth } = useAuth();
   const [sueldos, setSueldos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,7 +26,7 @@ export default function SueldosPage() {
   useEffect(() => {
     const fetchSueldos = async () => {
       try {
-        const res = await fetch('/api/sueldos');
+        const res = await fetchWithAuth('/api/sueldos');
         if (!res.ok) throw new Error('Error al cargar sueldos');
         const data = await res.json();
         setSueldos(data);
@@ -36,7 +38,7 @@ export default function SueldosPage() {
     };
     
     fetchSueldos();
-  }, []);
+  }, [fetchWithAuth]);
   
   // Manejar cambios en el formulario
   const handleChange = (e) => {
@@ -84,11 +86,8 @@ export default function SueldosPage() {
     }
     
     try {
-      const response = await fetch('/api/sueldos', {
+      const response = await fetchWithAuth('/api/sueldos', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(editForm)
       });
       
@@ -105,7 +104,7 @@ export default function SueldosPage() {
       }
       
       // Actualizar lista de sueldos
-      const res = await fetch('/api/sueldos');
+      const res = await fetchWithAuth('/api/sueldos');
       const sueldosData = await res.json();
       setSueldos(sueldosData);
       
@@ -126,11 +125,8 @@ export default function SueldosPage() {
     }
     
     try {
-      const response = await fetch('/api/sueldos', {
+      const response = await fetchWithAuth('/api/sueldos', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(sueldoForm)
       });
       
@@ -147,7 +143,7 @@ export default function SueldosPage() {
       }
       
       // Actualizar lista de sueldos
-      const res = await fetch('/api/sueldos');
+      const res = await fetchWithAuth('/api/sueldos');
       const sueldosData = await res.json();
       setSueldos(sueldosData);
       
@@ -168,8 +164,8 @@ export default function SueldosPage() {
     }
     
     try {
-      const response = await fetch(`/api/sueldos?id=${id}`, {
-        method: 'DELETE',
+      const response = await fetchWithAuth(`/api/sueldos?id=${id}`, {
+        method: 'DELETE'
       });
       
       if (!response.ok) {
@@ -185,7 +181,7 @@ export default function SueldosPage() {
       }
       
       // Actualizar lista de sueldos
-      const res = await fetch('/api/sueldos');
+      const res = await fetchWithAuth('/api/sueldos');
       const sueldosData = await res.json();
       setSueldos(sueldosData);
     } catch (err) {

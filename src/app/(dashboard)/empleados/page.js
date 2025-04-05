@@ -1,8 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+
 
 export default function EmpleadosPage() {
+  const { fetchWithAuth } = useAuth(); 
   const [empleados, setEmpleados] = useState([]);
   const [sueldos, setSueldos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,13 +33,13 @@ export default function EmpleadosPage() {
     const fetchData = async () => {
       try {
         // Cargar empleados
-        const empleadosRes = await fetch('/api/empleados');
+        const empleadosRes = await fetchWithAuth('/api/empleados');
         if (!empleadosRes.ok) throw new Error('Error al cargar empleados');
         const empleadosData = await empleadosRes.json();
         setEmpleados(empleadosData);
         
         // Cargar sueldos
-        const sueldosRes = await fetch('/api/sueldos');
+        const sueldosRes = await fetchWithAuth('/api/sueldos');
         if (!sueldosRes.ok) throw new Error('Error al cargar sueldos');
         const sueldosData = await sueldosRes.json();
         setSueldos(sueldosData);
@@ -49,7 +52,7 @@ export default function EmpleadosPage() {
     };
     
     fetchData();
-  }, []);
+  }, [fetchWithAuth]);
   
   // Manejar cambios en el formulario
   const handleChange = (e) => {
@@ -101,11 +104,8 @@ export default function EmpleadosPage() {
     }
     
     try {
-      const response = await fetch('/api/empleados', {
+      const response = await fetchWithAuth('/api/empleados', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(editForm)
       });
       
@@ -122,7 +122,7 @@ export default function EmpleadosPage() {
       }
       
       // Actualizar lista de empleados
-      const empleadosRes = await fetch('/api/empleados');
+      const empleadosRes = await fetchWithAuth('/api/empleados');
       const empleadosData = await empleadosRes.json();
       setEmpleados(empleadosData);
       
@@ -143,11 +143,8 @@ export default function EmpleadosPage() {
     }
     
     try {
-      const response = await fetch('/api/empleados', {
+      const response = await fetchWithAuth('/api/empleados', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(empleadoForm)
       });
       
@@ -164,7 +161,7 @@ export default function EmpleadosPage() {
       }
       
       // Actualizar lista de empleados
-      const empleadosRes = await fetch('/api/empleados');
+      const empleadosRes = await fetchWithAuth('/api/empleados');
       const empleadosData = await empleadosRes.json();
       setEmpleados(empleadosData);
       
@@ -187,7 +184,7 @@ export default function EmpleadosPage() {
     }
     
     try {
-      const response = await fetch(`/api/empleados?id=${id}`, {
+      const response = await fetchWithAuth(`/api/empleados?id=${id}`, {
         method: 'DELETE',
       });
       
@@ -204,9 +201,10 @@ export default function EmpleadosPage() {
       }
       
       // Actualizar lista de empleados
-      const empleadosRes = await fetch('/api/empleados');
+      const empleadosRes = await fetchWithAuth('/api/empleados');
       const empleadosData = await empleadosRes.json();
       setEmpleados(empleadosData);
+      
     } catch (err) {
       alert(err.message);
     }
